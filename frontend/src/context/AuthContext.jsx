@@ -13,6 +13,16 @@ const DEFAULT_CUSTOMER = {
   token: 'smartmart-customer-session-token',
 }
 
+const ADMIN_PROFILE = {
+  id: 1,
+  name: 'Parag (Store Owner)',
+  email: 'admin@smartmart.ai',
+  role: 'admin',
+  title: 'Store Administrator & AI Lead',
+  avatar: '👨‍💼',
+  token: 'smartmart-admin-auth-token-verified-cse276',
+}
+
 export function AuthProvider({ children }) {
   // Public default is always Customer
   const [user, setUser] = useState(() => {
@@ -35,7 +45,18 @@ export function AuthProvider({ children }) {
 
   // Admin login strictly requires password CSE276
   const loginAdmin = async (password) => {
-    const pwd = (password || '').trim()
+    const pwd = (password || '').trim().toUpperCase()
+
+    // 1. Instant client-side verification for 100% reliability on both GitHub Pages and localhost
+    if (pwd === 'CSE276') {
+      setUser(ADMIN_PROFILE)
+      try {
+        await client.post('/auth/login', { role: 'admin', password: 'CSE276' })
+      } catch {}
+      return { success: true, user: ADMIN_PROFILE }
+    }
+
+    // 2. Fallback to API check if custom password configured
     try {
       const res = await client.post('/auth/login', {
         role: 'admin',
@@ -47,23 +68,8 @@ export function AuthProvider({ children }) {
       }
       setUser(userData)
       return { success: true, user: userData }
-    } catch (err) {
-      // Robust client check for static GitHub Pages hosting
-      if (pwd.toUpperCase() === 'CSE276') {
-        const adminUser = {
-          id: 1,
-          name: 'Parag (Store Owner)',
-          email: 'admin@smartmart.ai',
-          role: 'admin',
-          title: 'Store Administrator & AI Lead',
-          avatar: '👨‍💼',
-          token: 'smartmart-admin-auth-token-verified-cse276',
-        }
-        setUser(adminUser)
-        return { success: true, user: adminUser }
-      }
-      const msg = err.response?.data?.detail || 'Invalid password. Access denied.'
-      throw new Error(msg)
+    } catch {
+      throw new Error('Access Denied: Invalid password.')
     }
   }
 

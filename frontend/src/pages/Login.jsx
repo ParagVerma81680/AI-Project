@@ -12,8 +12,9 @@ export default function Login() {
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
 
-  // Determine if user entered admin ID
-  const isAdminId = userId.trim().toLowerCase() === 'admin'
+  const cleanId = userId.trim().toLowerCase()
+  const isDirectPassword = cleanId === 'cse276'
+  const isAdminId = cleanId === 'admin' || cleanId === 'parag' || isDirectPassword
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -22,6 +23,14 @@ export default function Login() {
     setLoading(true)
 
     try {
+      // If user typed CSE276 directly in the ID box
+      if (isDirectPassword) {
+        await loginAdmin('CSE276')
+        setSuccess('Authenticated as Administrator (Parag)!')
+        setTimeout(() => navigate('/admin'), 300)
+        return
+      }
+
       if (isAdminId) {
         if (!password.trim()) {
           setError('Please enter the admin password.')
@@ -30,15 +39,15 @@ export default function Login() {
         }
         await loginAdmin(password)
         setSuccess('Authenticated as Administrator (Parag)!')
-        setTimeout(() => navigate('/admin'), 400)
+        setTimeout(() => navigate('/admin'), 300)
       } else {
-        // Any customer ID or 'customer' logs in directly
+        // Customer login
         await loginCustomer()
         setSuccess('Entering SmartMart as Customer…')
         setTimeout(() => navigate('/products'), 300)
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please try again.')
+      setError(err.message || 'Access Denied: Invalid password.')
     } finally {
       setLoading(false)
     }
@@ -78,7 +87,7 @@ export default function Login() {
                 type="text"
                 autoFocus
                 required
-                placeholder="Enter User ID (e.g. customer, admin)"
+                placeholder="Enter User ID (e.g. customer or admin)"
                 value={userId}
                 onChange={e => { setUserId(e.target.value); setError('') }}
                 className="w-full border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-400 font-medium"
@@ -106,7 +115,7 @@ export default function Login() {
             </div>
 
             {/* ── Password Field (ONLY appears if User ID is 'admin') ─── */}
-            {isAdminId && (
+            {isAdminId && !isDirectPassword && (
               <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2 animate-fadeIn">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-amber-900 uppercase tracking-wider">

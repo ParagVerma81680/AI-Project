@@ -33,10 +33,13 @@ class Settings(BaseSettings):
     ]
 
     # ------------------------------------------------------------------
-    # AI (Claude) — never hard-code these; always read from environment
+    # AI (Claude & Groq) — read from environment (.env)
     # ------------------------------------------------------------------
     ANTHROPIC_API_KEY: str = ""
     CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"
+
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # ------------------------------------------------------------------
     # Pydantic v2 config
