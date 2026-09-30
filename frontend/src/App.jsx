@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
@@ -14,7 +14,7 @@ import AdminDashboard from './pages/AdminDashboard'
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <HashRouter>
         <div className="min-h-screen" style={{ backgroundColor: '#f8fafc' }}>
           <Navbar />
           <Routes>
@@ -29,7 +29,7 @@ export default function App() {
             <Route path="/comparison" element={<Comparison />} />
           </Routes>
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   )
 }
