@@ -35,10 +35,11 @@ export function AuthProvider({ children }) {
 
   // Admin login strictly requires password CSE276
   const loginAdmin = async (password) => {
+    const pwd = (password || '').trim()
     try {
       const res = await client.post('/auth/login', {
         role: 'admin',
-        password: (password || '').trim(),
+        password: pwd,
       })
       const userData = {
         ...res.data.user,
@@ -47,7 +48,21 @@ export function AuthProvider({ children }) {
       setUser(userData)
       return { success: true, user: userData }
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Invalid Admin password. Access denied.'
+      // Robust client check for static GitHub Pages hosting
+      if (pwd.toUpperCase() === 'CSE276') {
+        const adminUser = {
+          id: 1,
+          name: 'Parag (Store Owner)',
+          email: 'admin@smartmart.ai',
+          role: 'admin',
+          title: 'Store Administrator & AI Lead',
+          avatar: '👨‍💼',
+          token: 'smartmart-admin-auth-token-verified-cse276',
+        }
+        setUser(adminUser)
+        return { success: true, user: adminUser }
+      }
+      const msg = err.response?.data?.detail || 'Invalid password. Access denied.'
       throw new Error(msg)
     }
   }
