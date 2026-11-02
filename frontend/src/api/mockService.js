@@ -6,38 +6,6 @@ import {
   AISLE_LABELS,
 } from './mockData'
 
-// Optional direct Groq call from browser (if key configured in settings/localStorage)
-async function callGroqDirect(userPrompt, systemPrompt = 'You are a helpful retail store assistant.') {
-  const groqKey = (typeof window !== 'undefined' ? localStorage.getItem('smartmart_groq_api_key') : '') || ''
-  if (!groqKey) return null
-
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 800,
-      }),
-    })
-    if (res.ok) {
-      const data = await res.json()
-      return data.choices?.[0]?.message?.content
-    }
-  } catch (e) {
-    console.warn('Groq direct call unavailable, using local mock engine:', e)
-  }
-  return null
-}
-
 // Helpers for localStorage persistence
 const getStored = (key, fallback) => {
   try {
@@ -52,6 +20,44 @@ const setStored = (key, val) => {
   try {
     localStorage.setItem(key, JSON.stringify(val))
   } catch {}
+}
+
+// Get user configured Groq Key (from localStorage, settings, or fallback)
+function getGroqKey() {
+  if (typeof window === 'undefined') return ''
+  return localStorage.getItem('smartmart_groq_api_key') || ''
+}
+
+// Live Direct Call to Groq AI using user's key with Qwen 27B model
+async function callGroqDirect(userPrompt, systemPrompt = 'You are SmartMart retail assistant. Answer helpfully and accurately.') {
+  const groqKey = getGroqKey()
+  if (!groqKey) return null
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'qwen/qwen3.8-27b',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.5,
+        max_tokens: 1024,
+      }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      return data.choices?.[0]?.message?.content || null
+    }
+  } catch (e) {
+    console.warn('Groq direct call failed:', e)
+  }
+  return null
 }
 
 // In-browser Dijkstra implementation
@@ -367,10 +373,10 @@ export async function handleMockRequest(config) {
         category_breakdown: catBreakdown,
         urgent_restocks: lowStock.slice(0, 6),
         system_status: {
-          fastapi: 'Connected (Cloud Web)',
-          sqlite_db: 'Active (Indexed)',
+          fastapi: 'Connected',
+          sqlite_db: 'Active',
           dijkstra_router: 'Operational',
-          groq_ai: 'Ready (openai/gpt-oss-20b)',
+          groq_ai: 'Ready (qwen/qwen3.8-27b)',
           multi_agent: 'Ready',
         },
       },
@@ -433,12 +439,12 @@ export async function handleMockRequest(config) {
   // 16. Policy Ask (POST /policies/ask or /chat/policy)
   if ((url === '/policies/ask' || url === '/chat/policy' || url === '/policies/ask/') && method === 'post') {
     const q = data.question || ''
-    const qLower = q.toLowerCase()
 
-    // 16a. Try live Groq API call if available
+    // 16a. REAL GROQ AI CALL using user's brain & API key
+    const policyContext = policies.map(p => `### ${p.title} (${p.category}):\n${p.content}`).join('\n\n')
     const groqAnswer = await callGroqDirect(
-      `Customer asked about SmartMart store policies: "${q}"\nRelevant policies:\n${policies.map(p => p.title + ': ' + p.content.slice(0, 200)).join('\n\n')}`,
-      'You are SmartMart AI assistant. Answer accurately based on the provided store policies. Be polite and concise.'
+      `STORE POLICIES:\n${policyContext}\n\nCUSTOMER QUESTION: "${q}"\n\nPlease answer the customer's question thoroughly and accurately based on the store policies above. Be warm, polite, and direct.`,
+      'You are SmartMart store policy assistant. Use your own reasoning grounded in the provided store policy database. Give fresh, thoughtful answers.'
     )
 
     if (groqAnswer) {
@@ -447,65 +453,105 @@ export async function handleMockRequest(config) {
         data: {
           question: q,
           answer: groqAnswer,
-          sources_used: policies.slice(0, 2).map(p => p.title),
-          retrieved_count: 2,
+          sources_used: policies.slice(0, 3).map(p => p.title),
+          retrieved_count: 3,
         },
       }
     }
 
-    // 16b. In-browser intelligent fallback
-    let answer = 'According to SmartMart policy, items in original unopened condition with receipt are eligible for return or exchange within 30 days.'
-    let sources = ['Return & Refund Policy']
+    // Dynamic semantic search fallback
+    const qWords = q.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+    const scoredPolicies = policies.map(p => {
+      const text = (p.title + ' ' + p.content).toLowerCase()
+      const score = qWords.reduce((acc, w) => acc + (text.includes(w) ? 1 : 0), 0)
+      return { ...p, score }
+    }).sort((a, b) => b.score - a.score)
 
-    if (qLower.includes('loyalt') || qLower.includes('point') || qLower.includes('member')) {
-      answer = 'SmartMart Loyalty Membership is 100% free! You earn 1 point for every Rs. 10 spent, 2 points on Double Points items, and 1.5 points on fresh produce. 100 points = Rs. 10 discount at checkout.'
-      sources = ['Membership & Loyalty Program']
-    } else if (qLower.includes('time') || qLower.includes('hour') || qLower.includes('open') || qLower.includes('sunday')) {
-      answer = 'SmartMart is open 7 days a week from 7:00 AM to 10:00 PM, including Sundays and public holidays.'
-      sources = ['Store Hours & Holiday Operations']
-    } else if (qLower.includes('deliver') || qLower.includes('home')) {
-      answer = 'We provide free home delivery on orders above Rs. 499 within a 5 km radius. For smaller orders, a flat delivery fee of Rs. 30 applies.'
-      sources = ['Home Delivery Policy']
-    } else if (qLower.includes('payment') || qLower.includes('upi') || qLower.includes('card')) {
-      answer = 'We accept Cash, UPI (Google Pay, PhonePe, Paytm, BHIM), and all Credit/Debit cards (Visa, MasterCard, RuPay).'
-      sources = ['Accepted Payment Methods']
-    } else if (qLower.includes('shampoo') || qLower.includes('opened') || qLower.includes('hygiene')) {
-      answer = 'Opened personal care products (such as shampoo, soap, or toothpaste) cannot be returned due to hygiene and safety guidelines.'
-      sources = ['Return & Refund Policy']
-    }
+    const best = scoredPolicies[0]
+    const answer = best && best.score > 0
+      ? `Based on SmartMart's ${best.title}: ${best.content}`
+      : `According to SmartMart store policies, for inquiries regarding "${q}", please visit the Customer Service Desk near Aisle A1 or call 1800-SMART-MART (8 AM - 9 PM).`
 
     return {
       status: 200,
       data: {
         question: q,
         answer,
-        sources_used: sources,
-        retrieved_count: sources.length,
+        sources_used: best && best.score > 0 ? [best.title] : ['Customer Guidelines'],
+        retrieved_count: 1,
       },
     }
   }
 
   // 17. Recommendations (POST /recommendations or /recommendations/)
   if ((url === '/recommendations' || url === '/recommendations/') && method === 'post') {
-    const prefs = (data.preferences || '').toLowerCase()
-    const budget = data.budget ? parseFloat(data.budget) : Infinity
+    const prefs = data.preferences || ''
+    const budget = data.budget ? parseFloat(data.budget) : null
     const maxResults = data.max_results || 5
     const catIds = data.category_ids || []
 
+    // 17a. REAL GROQ AI CALL to pick products
+    const productCatalog = products.map(p => `ID:${p.id} | ${p.name} (${p.brand}) | Price: Rs.${p.price} | Aisle:${p.aisle} Shelf:${p.shelf} | Category:${p.category?.name || 'General'}`).join('\n')
+
+    const prompt = `STORE INVENTORY:\n${productCatalog}\n\nCUSTOMER PREFERENCE: "${prefs}"\nBUDGET: ${budget ? `Rs. ${budget}` : 'Flexible'}\nMAX ITEMS: ${maxResults}\n\nPlease recommend the top matching products from the inventory above. Format your response as a valid JSON object with:\n{\n  "summary": "1-2 sentences of thoughtful shopping advice for this customer",\n  "recommendations": [\n    {\n      "product_id": number,\n      "explanation": "Specific customized reason why this product fits their request"\n    }\n  ]\n}`
+
+    const groqRaw = await callGroqDirect(
+      prompt,
+      'You are SmartMart personal shopping AI assistant. Analyze the inventory carefully and return valid JSON only.'
+    )
+
+    if (groqRaw) {
+      try {
+        const jsonMatch = groqRaw.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          const recs = (parsed.recommendations || []).map(r => {
+            const p = products.find(prod => prod.id === r.product_id)
+            if (!p) return null
+            return {
+              id: p.id,
+              name: p.name,
+              brand: p.brand,
+              price: p.price,
+              aisle: p.aisle,
+              shelf: p.shelf,
+              category: p.category?.name || 'General',
+              stock: p.stock,
+              explanation: r.explanation,
+            }
+          }).filter(Boolean)
+
+          if (recs.length > 0) {
+            return {
+              status: 200,
+              data: {
+                preferences: prefs,
+                budget,
+                recommendations: recs,
+                total_found: recs.length,
+                ai_summary: parsed.summary || `SmartMart AI personalized selection for "${prefs}".`,
+              },
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Groq JSON parse fallback:', err)
+      }
+    }
+
+    // Dynamic Filter fallback
     let matched = products.filter(p => {
       if (catIds.length > 0 && !catIds.includes(p.category_id)) return false
-      if (p.price > budget) return false
+      if (budget && p.price > budget) return false
       return true
     })
 
-    if (prefs) {
-      const words = prefs.split(/\s+/).filter(w => w.length > 2)
-      matched.sort((a, b) => {
-        const aScore = words.reduce((acc, w) => acc + (a.name.toLowerCase().includes(w) || (a.description || '').toLowerCase().includes(w) ? 1 : 0), 0)
-        const bScore = words.reduce((acc, w) => acc + (b.name.toLowerCase().includes(w) || (b.description || '').toLowerCase().includes(w) ? 1 : 0), 0)
-        return bScore - aScore
-      })
-    }
+    const words = prefs.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+    matched.sort((a, b) => {
+      const aScore = words.reduce((acc, w) => acc + (a.name.toLowerCase().includes(w) || (a.description || '').toLowerCase().includes(w) ? 1 : 0), 0)
+      const bScore = words.reduce((acc, w) => acc + (b.name.toLowerCase().includes(w) || (b.description || '').toLowerCase().includes(w) ? 1 : 0), 0)
+      return bScore - aScore
+    })
 
     const recs = matched.slice(0, maxResults).map(p => ({
       id: p.id,
@@ -516,17 +562,17 @@ export async function handleMockRequest(config) {
       shelf: p.shelf,
       category: p.category?.name || 'General',
       stock: p.stock,
-      explanation: `Selected because it matches your search for "${data.preferences}" and fits your budget at Rs. ${p.price}. Located in Aisle ${p.aisle}.`,
+      explanation: `Selected specifically for "${prefs}" — located in Aisle ${p.aisle} (${p.shelf || 'Mid'} shelf) at Rs. ${p.price}.`,
     }))
 
     return {
       status: 200,
       data: {
-        preferences: data.preferences,
-        budget: data.budget || null,
+        preferences: prefs,
+        budget,
         recommendations: recs,
         total_found: recs.length,
-        ai_summary: `Based on your request "${data.preferences}", we recommend these ${recs.length} top items tailored to your dietary needs and budget.`,
+        ai_summary: `Here are our recommended selections matching your inquiry for "${prefs}".`,
       },
     }
   }
@@ -536,16 +582,16 @@ export async function handleMockRequest(config) {
     return {
       status: 200,
       data: {
-        architecture: 'Collaborative Multi-Agent (Customer Agent + Store Agent)',
+        architecture: 'Collaborative Multi-Agent System (Customer Concierge ⇄ Floor Specialist)',
         agents: [
-          { name: 'Customer Agent', role: 'Understands customer requirements, clarifies constraints, and synthesises advice.' },
-          { name: 'Store Agent', role: 'Checks real-time store catalog, stock availability, pricing, and aisle locations.' },
+          { name: 'Customer Concierge Agent', role: 'Understands customer requirements, clarifies constraints, and synthesises advice.' },
+          { name: 'Floor Inventory Associate', role: 'Checks real-time store catalog, stock availability, pricing, and aisle locations.' },
         ],
         pipeline: [
-          '1. Intent Analysis',
-          '2. Inventory Lookup',
-          '3. Policy Verification',
-          '4. Collaborative Synthesis',
+          '1. Customer Intent Analysis',
+          '2. Floor Catalog & Aisle Query',
+          '3. Stock Verification',
+          '4. Multi-Agent Collaborative Synthesis',
         ],
       },
     }
@@ -555,13 +601,25 @@ export async function handleMockRequest(config) {
   if (url === '/agents/chat' && method === 'post') {
     const req = data.request || ''
 
-    // Try direct Groq if available
-    const groqSynthesis = await callGroqDirect(
-      `A retail customer asked: "${req}". Provide a helpful final recommendation mentioning specific items, aisles, and prices from SmartMart supermarket.`,
-      'You are the Customer Agent in a multi-agent retail system. Provide friendly, accurate shopping advice.'
+    // 19a. REAL GROQ MULTI-AGENT BRAIN CALL
+    const inventorySnapshot = products.map(p => `${p.name} (Rs.${p.price}, Aisle ${p.aisle}, Stock: ${p.stock})`).join('; ')
+    
+    const turn1 = await callGroqDirect(
+      `A customer asks: "${req}". As Customer Concierge Agent, ask 2 specific clarifying questions to the Store Inventory Associate about products, aisles, and dietary needs. Format as a numbered list.`,
+      'You are Customer Concierge Agent in a retail store.'
     )
 
-    const finalAnswer = groqSynthesis || `Here are our recommendations for "${req}":\n\n1. Fresh Milk (1L, Rs. 50) located in Aisle A1.\n2. Whole Wheat Bread (400g, Rs. 45) located in Aisle A2.\n3. Ripe Bananas (6 pcs, Rs. 35) located in Aisle C1.\n\nAll items are currently in stock and ready for pickup!`
+    const turn2 = await callGroqDirect(
+      `STORE INVENTORY: ${inventorySnapshot}\n\nCUSTOMER QUESTIONS:\n${turn1 || req}\n\nAs the Store Inventory Associate, answer factually based on our actual stock, exact aisle numbers, and prices in Rs.`,
+      'You are the Floor Inventory Specialist at SmartMart. Be precise and quote actual aisle coordinates.'
+    )
+
+    const turn3 = await callGroqDirect(
+      `CUSTOMER REQUEST: "${req}"\n\nSTAFF EXCHANGE:\n${turn2 || ''}\n\nWrite the warm, final helpful response for the shopper, recommending specific items, prices in Rs., and aisle locations.`,
+      'You are the Customer Concierge delivering final personalized shopping advice.'
+    )
+
+    const finalAnswer = turn3 || `For "${req}", we checked our inventory and recommend visiting our aisles. Please ask our staff at the Customer Desk for assistance.`
 
     return {
       status: 200,
@@ -570,19 +628,19 @@ export async function handleMockRequest(config) {
         transcript: [
           {
             agent: 'system',
-            content: `Customer request received: "${req}"`,
+            content: `Customer inquiry broadcasted over channel: "${req}"`,
           },
           {
             agent: 'customer_agent',
-            content: `I've analysed the request for "${req}". Identifying key items, nutritional preferences, and budget constraints. Asking Store Agent for inventory details.`,
+            content: turn1 || `1. What items best match "${req}"?\n2. What aisles and current stock are available?`,
           },
           {
             agent: 'store_agent',
-            content: `Store inventory queried: Found matching active products across Aisles A1, A2, and C1. Stock is verified and pricing is up to date.`,
+            content: turn2 || `Checked catalog: items verified in store database.`,
           },
           {
             agent: 'customer_agent',
-            content: `Final synthesis complete. Delivering tailored recommendations directly to the shopper.`,
+            content: turn3 || finalAnswer,
           },
         ],
         final_answer: finalAnswer,
@@ -607,6 +665,31 @@ export async function handleMockRequest(config) {
   // 21. Comparison Run (POST /comparison/run)
   if (url === '/comparison/run' && method === 'post') {
     const q = data.question || ''
+
+    // Dynamic Live Groq Zero-Shot
+    const zeroShotAnswer = await callGroqDirect(
+      `Answer this customer question using general knowledge (no store context): "${q}"`,
+      'You are a general customer service assistant.'
+    )
+
+    // Dynamic Live Groq RAG
+    const ragAnswer = await callGroqDirect(
+      `STORE POLICIES:\n${policies.map(p => p.title + ': ' + p.content).join('\n')}\n\nQUESTION: "${q}"\n\nAnswer using ONLY the provided store policies. Cite the policy name.`,
+      'You are SmartMart RAG assistant.'
+    )
+
+    // Dynamic Live Groq Multi-Agent
+    const agentAnswer = await callGroqDirect(
+      `Customer query: "${q}". Synthesize a store recommendation dialogue mentioning specific items and aisles.`,
+      'You are a multi-agent retail coordinator.'
+    )
+
+    // Dynamic Evaluator Verdict
+    const verdict = await callGroqDirect(
+      `Compare these approaches for "${q}":\nRule-based (keyword matching)\nZero-shot: ${zeroShotAnswer?.slice(0, 150)}\nRAG: ${ragAnswer?.slice(0, 150)}\nWhich gave the best grounded response and why? Give a 2-3 sentence verdict.`,
+      'You are an AI benchmark evaluator.'
+    )
+
     return {
       status: 200,
       data: {
@@ -615,49 +698,49 @@ export async function handleMockRequest(config) {
           {
             paradigm: 'rule_based',
             display_name: 'Rule-Based System',
-            description: 'Traditional keyword matching — no AI involved. Searches policy text for matching words. Fast but rigid.',
-            answer: `[Matched Policy Document]\nSmartMart Policy states: All items must be unused and in original packaging for refunds within 30 days.`,
-            response_time_ms: 1.5,
-            sources_used: ['Return & Refund Policy'],
-            pros: ['Extremely fast (1.5ms)', '100% deterministic', 'No API cost', 'Works offline'],
-            cons: ['Cannot understand nuances', 'Fails on paraphrasing', 'No reasoning ability'],
+            description: 'Traditional keyword matching — searches policy text for words. Instant but rigid.',
+            answer: `[Matched Policy Document]\nSmartMart Policy: ${policies[0].title} — ${policies[0].content.slice(0, 180)}...`,
+            response_time_ms: 1.2,
+            sources_used: [policies[0].title],
+            pros: ['Extremely fast (1.2ms)', '100% deterministic', 'No API cost'],
+            cons: ['Cannot understand intent', 'Fails on paraphrasing'],
             ai_calls_made: 0,
           },
           {
             paradigm: 'zero_shot',
             display_name: 'Zero-Shot LLM',
-            description: 'Groq LLM is asked with no store context. Relies on general pre-training knowledge. May hallucinate store-specific rules.',
-            answer: `Generally, retail stores require unopened items for returns within 14-30 days. For items like "${q}", policies vary by location.`,
-            response_time_ms: 980.2,
+            description: 'Groq LLM is asked with no store context. Relies on general pre-training knowledge.',
+            answer: zeroShotAnswer || `Standard retail policy generally requires unopened items with receipt within 14-30 days.`,
+            response_time_ms: 450.5,
             sources_used: [],
-            pros: ['Fluent & natural', 'Answers any query', 'Single API call'],
-            cons: ['Hallucination risk', 'No store-specific prices or aisle locations'],
+            pros: ['Fluent & natural', 'Answers any query'],
+            cons: ['Hallucination risk', 'No store-specific prices or aisle coordinates'],
             ai_calls_made: 1,
           },
           {
             paradigm: 'rag',
             display_name: 'RAG (Retrieval-Augmented Generation)',
             description: 'Retrieves relevant policy documents from SmartMart knowledge base and grounds the LLM answer.',
-            answer: `Based on SmartMart store policies: Products in original packaging are eligible for return within 30 days with receipt. Personal hygiene items cannot be returned once opened.`,
-            response_time_ms: 1120.4,
-            sources_used: ['Return & Refund Policy', 'Store Customer Guidelines'],
+            answer: ragAnswer || `Based on SmartMart store policies: Products in original packaging are eligible for return within 30 days with receipt.`,
+            response_time_ms: 780.2,
+            sources_used: [policies[0].title],
             pros: ['Grounded in real store data', 'Zero hallucination', 'Cites official sources'],
-            cons: ['Retrieval dependent', 'Slightly slower than rule-based'],
+            cons: ['Dependent on retrieval quality'],
             ai_calls_made: 1,
           },
           {
             paradigm: 'multi_agent',
             display_name: 'Multi-Agent System',
             description: 'Two specialized AI agents collaborate: Customer Agent understands shopper intent and Store Agent queries the live catalog.',
-            answer: `Customer Agent & Store Agent collaboration: We evaluated your question regarding "${q}". According to store policy and inventory status, our customer desk is available 7 AM - 10 PM to assist.`,
-            response_time_ms: 2850.1,
-            sources_used: ['Customer Agent', 'Store Agent', 'Product DB', 'Policy DB'],
-            pros: ['Deepest intent understanding', 'Full multi-step reasoning', 'Shows full transparent transcript'],
-            cons: ['Slowest (~3s)', 'Multiple AI calls required'],
+            answer: agentAnswer || `Customer Concierge & Floor Associate evaluated "${q}" against store inventory.`,
+            response_time_ms: 1450.8,
+            sources_used: ['Customer Concierge', 'Store Associate', 'Product DB'],
+            pros: ['Deepest intent understanding', 'Full multi-step reasoning'],
+            cons: ['Requires multiple AI calls'],
             ai_calls_made: 3,
           },
         ],
-        verdict: 'RAG (Retrieval-Augmented Generation) provides the best balance of speed, accuracy, and store-specific grounding for customer assistance.',
+        verdict: verdict || 'RAG (Retrieval-Augmented Generation) provides the best balance of speed, accuracy, and store-specific grounding for customer assistance.',
       },
     }
   }

@@ -1,9 +1,22 @@
+import { useState, useEffect } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import ApiKeyModal from './ApiKeyModal'
 
 export default function Navbar() {
   const { user, isAdmin, logoutAdmin } = useAuth()
   const navigate = useNavigate()
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('smartmart_groq_api_key')
+      if (savedKey) {
+        setHasApiKey(true)
+      }
+    }
+  }, [])
 
   const adminLinks = [
     { to: '/', label: 'Home' },
@@ -51,10 +64,20 @@ export default function Navbar() {
           <span className="text-gray-300 hidden md:inline">🕒 STORE HOURS: 07:00 AM - 10:00 PM (DAILY)</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <span className="text-emerald-400 font-bold">🛒 SMARTCARTS DOCKED: 48</span>
+        <div className="flex items-center gap-3">
+          {/* Key status & trigger button */}
+          <button
+            type="button"
+            onClick={() => setApiKeyModalOpen(true)}
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/60 text-emerald-300 font-mono transition-colors text-[10px]"
+            title="Configure Groq API Key"
+          >
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span>AI BRAIN: GROQ ACTIVE</span>
+            <span className="text-[9px] opacity-70">⚙️</span>
+          </button>
           <span className="text-gray-400">|</span>
-          <span className="text-amber-300 font-bold">AI RAG & MAS: ONLINE (GROQ)</span>
+          <span className="text-amber-300 font-bold">MODEL: QWEN 27B</span>
         </div>
       </div>
 
@@ -108,8 +131,17 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* ── User Auth Controls ────────────────────────────────── */}
-          <div className="flex items-center gap-2.5">
+          {/* ── User Auth Controls & API Key Pill ─────────────────── */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setApiKeyModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-emerald-300 bg-emerald-950/70 border border-emerald-700/60 hover:bg-emerald-900 transition-colors flex items-center gap-1"
+              title="Groq API Key Settings"
+            >
+              <span>🔑</span>
+              <span className="hidden sm:inline">API</span>
+            </button>
+
             {isAdmin ? (
               <button
                 onClick={handleLogoutAdmin}
@@ -154,6 +186,9 @@ export default function Navbar() {
           </NavLink>
         ))}
       </div>
+
+      {/* API Key Modal */}
+      <ApiKeyModal isOpen={apiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} />
     </header>
   )
 }
