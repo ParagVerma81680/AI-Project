@@ -6,7 +6,7 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 45000, // Allow 45s for multi-call AI operations
 })
 
 client.interceptors.response.use(
@@ -24,6 +24,11 @@ client.interceptors.response.use(
     if (isStaticHost && error.config) {
       try {
         const mockRes = await handleMockRequest(error.config)
+        if (mockRes.status >= 400) {
+          const err = new Error(mockRes.data?.detail || 'Request failed')
+          err.response = mockRes
+          return Promise.reject(err)
+        }
         return {
           ...mockRes,
           config: error.config,

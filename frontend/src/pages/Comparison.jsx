@@ -167,7 +167,7 @@ export default function Comparison() {
   }
 
   // Find fastest result for badge
-  const fastestIdx = result
+  const fastestIdx = (result?.results && result.results.length > 0)
     ? result.results.reduce((best, r, i, arr) =>
         r.response_time_ms < arr[best].response_time_ms ? i : best, 0)
     : -1
@@ -300,7 +300,7 @@ export default function Comparison() {
 
           {/* 4-column card grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-            {result.results.map((r, i) => (
+            {(result.results || []).map((r, i) => (
               <ParadigmCard key={r.paradigm} result={r} rank={i === fastestIdx ? 0 : i + 1} />
             ))}
           </div>
@@ -314,12 +314,12 @@ export default function Comparison() {
               ⏱️ Speed Comparison
             </p>
             <div className="space-y-3">
-              {[...result.results]
+              {[...(result.results || [])]
                 .sort((a, b) => a.response_time_ms - b.response_time_ms)
                 .map(r => {
-                  const style = PARADIGM_STYLES[r.paradigm]
-                  const maxMs = Math.max(...result.results.map(x => x.response_time_ms))
-                  const pct   = (r.response_time_ms / maxMs) * 100
+                  const style = PARADIGM_STYLES[r.paradigm] || PARADIGM_STYLES.rule_based
+                  const maxMs = Math.max(...(result.results || []).map(x => x.response_time_ms || 1), 1)
+                  const pct   = ((r.response_time_ms || 1) / maxMs) * 100
                   return (
                     <div key={r.paradigm} className="flex items-center gap-3">
                       <span className="w-36 text-xs font-medium text-gray-600 flex-shrink-0">

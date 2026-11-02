@@ -199,7 +199,7 @@ export default function Agents() {
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
                 style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}
               >
-                {result.transcript.length} messages
+                {(result.transcript || []).length} messages
               </span>
             </div>
 
@@ -207,7 +207,7 @@ export default function Agents() {
               ref={transcriptRef}
               className="p-5 space-y-4 max-h-[480px] overflow-y-auto"
             >
-              {result.transcript.map((msg, i) => {
+              {(result.transcript || []).map((msg, i) => {
                 const style = AGENT_COLORS[msg.agent] || AGENT_COLORS.system
                 return (
                   <div key={i} className="flex gap-3">
@@ -239,7 +239,7 @@ export default function Agents() {
           {/* Agents involved badges */}
           <div className="flex gap-2 mt-4">
             <span className="text-xs text-gray-400">Agents used:</span>
-            {result.agents_involved.map(a => (
+            {(result.agents_involved || []).map(a => (
               <span
                 key={a}
                 className="text-xs px-2 py-0.5 rounded-full font-medium"

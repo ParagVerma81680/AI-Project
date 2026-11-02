@@ -123,17 +123,15 @@ export default function PolicyChat() {
     setTyping(true)
 
     try {
-      const history = messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
-      const res = await client.post('/chat/policy', {
+      const res = await client.post('/policies/ask', {
         question: content,
-        history,
       })
 
-      const data = res.data
+      const data = res.data || {}
       const aiMsg = {
         role: 'assistant',
         content: data.answer || data.response || data.content || 'No response received.',
-        sources: data.sources || data.references || [],
+        sources: data.sources_used || data.sources || data.references || [],
         timestamp: Date.now(),
       }
       setMessages((prev) => [...prev, aiMsg])

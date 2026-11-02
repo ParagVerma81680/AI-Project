@@ -184,31 +184,33 @@ export default function Recommendations() {
       {result && !loading && (
         <div>
           {/* AI Summary */}
-          <div
-            className="rounded-2xl p-5 mb-6 border"
-            style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🤖</span>
-              <span className="font-bold text-sm" style={{ color: '#14532d' }}>Claude's Take</span>
+          {result.ai_summary && (
+            <div
+              className="rounded-2xl p-5 mb-6 border"
+              style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🤖</span>
+                <span className="font-bold text-sm" style={{ color: '#14532d' }}>AI Assistant's Take</span>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed">{result.ai_summary}</p>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{result.ai_summary}</p>
-          </div>
+          )}
 
           {/* Count */}
           <p className="text-sm text-gray-500 mb-4">
-            Found <strong>{result.total_found}</strong> recommendation{result.total_found !== 1 ? 's' : ''} for:{' '}
-            <em>"{result.preferences}"</em>
+            Found <strong>{result.total_found || result.recommendations?.length || 0}</strong> recommendation{(result.total_found || 0) !== 1 ? 's' : ''} for:{' '}
+            <em>"{result.preferences || preferences}"</em>
           </p>
 
           {/* Recommendation Cards */}
-          {result.total_found === 0 ? (
+          {(!result.recommendations || result.recommendations.length === 0) ? (
             <div className="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm">
               No matching products found. Try broadening your preferences or adjusting the budget.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {result.recommendations.map((rec, idx) => (
+              {(result.recommendations || []).map((rec, idx) => (
                 <div
                   key={rec.id}
                   className="bg-white rounded-2xl shadow-sm border p-5 flex flex-col gap-3 transition-all hover:shadow-md"
@@ -266,7 +268,7 @@ export default function Recommendations() {
                     style={{ backgroundColor: '#f9fafb' }}
                   >
                     <span className="font-semibold text-xs" style={{ color: '#16a34a' }}>
-                      Why Claude picked this:{' '}
+                      Why recommended:{' '}
                     </span>
                     {rec.explanation}
                   </div>
