@@ -212,6 +212,65 @@ export default function Home() {
         </section>
       )}
 
+      {/* ── Physical Supermarket Aisle Directory Board ─────────────── */}
+      <section className="py-12 px-6 max-w-6xl mx-auto w-full">
+        <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border-4 border-slate-700">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-6 border-b border-slate-700">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-green-500/20 text-green-400 font-black text-xl flex items-center justify-center border border-green-500/30">
+                🏬
+              </span>
+              <div>
+                <h2 className="text-xl font-black">Store Department & Aisle Directory</h2>
+                <p className="text-xs text-slate-400">Physical Layout · Superstore Sector 14</p>
+              </div>
+            </div>
+            <Link
+              to="/planner"
+              className="text-xs px-4 py-2 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 transition-colors shadow-xs"
+            >
+              Open Floorplan Visualizer ➔
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { aisle: 'A1', name: 'Dairy & Cold Storage', icon: '🥛', color: '#38bdf8', items: 'Milk, Paneer, Curd, Butter', shelf: 'Cooler Unit' },
+              { aisle: 'A2', name: 'Artisan Bakery', icon: '🥖', color: '#fb923c', items: 'Fresh Breads, Buns, Croissants', shelf: 'Warm Oven Shelf' },
+              { aisle: 'B1', name: 'Beverages & Juices', icon: '🥤', color: '#34d399', items: 'Cold Drinks, Juices, Waters', shelf: 'Chilled Fridge' },
+              { aisle: 'B2', name: 'Snacks & Sweets', icon: '🍿', color: '#f43f5e', items: 'Chips, Peanuts, Chocolates', shelf: 'Gondola Rack' },
+              { aisle: 'C1', name: 'Fresh Fruits Market', icon: '🍎', color: '#eab308', items: 'Apples, Bananas, Citrus', shelf: 'Wooden Crates' },
+              { aisle: 'C2', name: 'Fresh Vegetables', icon: '🥦', color: '#22c55e', items: 'Tomatoes, Potatoes, Onions', shelf: 'Produce Bins' },
+              { aisle: 'D1', name: 'Personal Care', icon: '🧴', color: '#a855f7', items: 'Shampoos, Toothpastes, Soaps', shelf: 'Hygiene Bay' },
+              { aisle: 'EXIT', name: 'Checkout Lanes 1-3', icon: '💳', color: '#f97316', items: 'Cash, UPI, Cards, Self-Bagging', shelf: 'Registers' },
+            ].map(dir => (
+              <Link
+                key={dir.aisle}
+                to="/products"
+                className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 hover:border-green-500 hover:bg-slate-800 transition-all group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl">{dir.icon}</span>
+                    <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded-full text-slate-900" style={{ backgroundColor: dir.color }}>
+                      AISLE {dir.aisle}
+                    </span>
+                  </div>
+                  <h3 className="font-extrabold text-sm text-white group-hover:text-green-300 transition-colors">
+                    {dir.name}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">{dir.items}</p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-700 text-[10px] font-mono text-slate-500 flex justify-between">
+                  <span>{dir.shelf}</span>
+                  <span className="group-hover:translate-x-1 transition-transform text-green-400">View Shelves →</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Feature Cards ────────────────────────────────────────── */}
       <section className="py-16 px-6">
         <div className="max-w-6xl mx-auto">

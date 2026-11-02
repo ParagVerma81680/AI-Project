@@ -333,6 +333,7 @@ export default function Products() {
 
   // Success toast
   const [toast, setToast] = useState('')
+  const [displayMode, setDisplayMode] = useState('physical_shelves') // 'physical_shelves' | 'grid'
   const showToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
@@ -430,8 +431,32 @@ export default function Products() {
           </p>
         </div>
 
-        {/* Action Controls based on Role */}
-        <div className="flex items-center gap-3">
+        {/* Action Controls based on Role + View Switcher */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Physical Shelves vs Grid Mode Switcher */}
+          <div className="inline-flex rounded-xl bg-gray-100 p-1 border border-gray-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('physical_shelves')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                displayMode === 'physical_shelves' ? 'bg-white text-green-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <span>🏬</span>
+              <span>Physical Shelves</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                displayMode === 'grid' ? 'bg-white text-green-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <span>▦</span>
+              <span>Grid View</span>
+            </button>
+          </div>
+
           {isAdmin ? (
             <button
               onClick={() => setAddOpen(true)}
@@ -541,51 +566,171 @@ export default function Products() {
             </div>
           )}
 
-          {/* Product grid */}
+          {/* Product display: Physical Shelves View or Standard Grid */}
           {!loading && !error && products.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {products.map(p => {
-                const inCart = cart.some(c => c.id === p.id)
-                return (
-                  <div key={p.id} className="relative group flex flex-col">
-                    <ProductCard product={p} onClick={setViewProduct} />
+            displayMode === 'physical_shelves' ? (
+              /* ── Physical Aisle & Shelves View ──────────────────────── */
+              <div className="space-y-8">
+                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'D1'].map(aisleCode => {
+                  const aisleProds = products.filter(p => (p.aisle || 'A1') === aisleCode)
+                  if (aisleProds.length === 0) return null
 
-                    {/* Admin Action Buttons (Only visible to Admin) */}
-                    {isAdmin && (
-                      <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={e => { e.stopPropagation(); setEditProduct(productToForm(p)) }}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md transition-all hover:scale-110 bg-blue-600 text-white"
-                          title="Edit Product (Admin)"
-                        >✏️</button>
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteProduct(p) }}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md transition-all hover:scale-110 bg-red-600 text-white"
-                          title="Delete Product (Admin)"
-                        >🗑️</button>
+                  const AISLE_TITLES = {
+                    A1: { name: 'Dairy & Chilled Goods', icon: '🥛', color: '#0284c7', bg: '#f0f9ff' },
+                    A2: { name: 'Artisan Bakery & Breads', icon: '🥖', color: '#d97706', bg: '#fffbeb' },
+                    B1: { name: 'Cold Beverages & Sodas', icon: '🥤', color: '#059669', bg: '#ecfdf5' },
+                    B2: { name: 'Snacks & Confectionery', icon: '🍿', color: '#e11d48', bg: '#fff1f2' },
+                    C1: { name: 'Fresh Fruits Market', icon: '🍎', color: '#ca8a04', bg: '#fefce8' },
+                    C2: { name: 'Farm Fresh Vegetables', icon: '🥦', color: '#16a34a', bg: '#f0fdf4' },
+                    D1: { name: 'Personal Care & Hygiene', icon: '🧴', color: '#9333ea', bg: '#faf5ff' },
+                  }
+                  const meta = AISLE_TITLES[aisleCode] || { name: 'Store Bay', icon: '📦', color: '#475569', bg: '#f8fafc' }
+
+                  const topProds = aisleProds.filter(p => p.shelf === 'Top')
+                  const midProds = aisleProds.filter(p => p.shelf === 'Mid' || !p.shelf)
+                  const botProds = aisleProds.filter(p => p.shelf === 'Bot')
+
+                  const renderShelfTier = (title, icon, tierProds, shelfBg = '#f1f5f9') => (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <span className="text-xs font-bold text-gray-500 flex items-center gap-1.5 uppercase tracking-wider">
+                          <span>{icon}</span>
+                          <span>{title}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gray-200 text-gray-700 font-semibold">
+                            {tierProds.length} items
+                          </span>
+                        </span>
                       </div>
-                    )}
 
-                    {/* Customer Action Button: Add to Route Planner */}
-                    {!isAdmin && (
-                      <div className="mt-2">
-                        <button
-                          onClick={e => { e.stopPropagation(); addToCart(p) }}
-                          disabled={inCart}
-                          className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
-                            inCart
-                              ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-default'
-                              : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-600 hover:text-white'
-                          }`}
+                      {/* Physical Shelf Rack Structure */}
+                      <div
+                        className="p-4 rounded-2xl border relative shadow-xs"
+                        style={{ backgroundColor: shelfBg, borderColor: '#e2e8f0' }}
+                      >
+                        {tierProds.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-gray-400 italic">
+                            Empty shelf bay · Products will restock shortly
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {tierProds.map(p => {
+                              const inCart = cart.some(c => c.id === p.id)
+                              return (
+                                <div key={p.id} className="relative group">
+                                  <ProductCard
+                                    product={p}
+                                    onClick={setViewProduct}
+                                    onAddToCart={!isAdmin ? () => addToCart(p) : undefined}
+                                    inCart={inCart}
+                                  />
+                                  {isAdmin && (
+                                    <div className="absolute top-8 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setEditProduct(productToForm(p)) }}
+                                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md bg-blue-600 text-white hover:scale-110 transition-transform"
+                                        title="Edit Product"
+                                      >✏️</button>
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setDeleteProduct(p) }}
+                                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md bg-red-600 text-white hover:scale-110 transition-transform"
+                                        title="Delete Product"
+                                      >🗑️</button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Physical Wood/Steel Shelf Ledge Rail Bar */}
+                        <div
+                          className="h-3 rounded-b-xl mt-3 flex items-center justify-between px-3 shadow-inner"
+                          style={{
+                            background: 'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)',
+                            borderTop: '1px solid #cbd5e1',
+                          }}
                         >
-                          <span>{inCart ? '✓ In Route Cart' : '🛒 + Add to Route Planner'}</span>
-                        </button>
+                          <span className="w-12 h-1 bg-gray-400 rounded-full" />
+                          <span className="text-[8px] font-mono font-bold text-gray-200 uppercase tracking-widest">
+                            SHELF RAIL · AISLE {aisleCode}
+                          </span>
+                          <span className="w-12 h-1 bg-gray-400 rounded-full" />
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    </div>
+                  )
+
+                  return (
+                    <div
+                      key={aisleCode}
+                      className="bg-white rounded-3xl border shadow-sm p-6 overflow-hidden"
+                      style={{ borderColor: '#d1fae5' }}
+                    >
+                      {/* Physical Aisle Overhead Gondola Sign */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm" style={{ backgroundColor: meta.bg, border: `1.5px solid ${meta.color}40` }}>
+                            {meta.icon}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-lg text-xs font-black text-white" style={{ backgroundColor: meta.color }}>
+                                AISLE {aisleCode}
+                              </span>
+                              <h3 className="text-lg font-black text-gray-900">{meta.name}</h3>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">Physical Gondola Fixture · 3 Display Shelves</p>
+                          </div>
+                        </div>
+
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+                          {aisleProds.length} total items on shelf
+                        </span>
+                      </div>
+
+                      {/* 3 Shelf Tiers */}
+                      {renderShelfTier('Top Shelf (Specialty & Premium)', '🪜', topProds, '#f8fafc')}
+                      {renderShelfTier('Eye-Level Shelf (Bestsellers & Everyday)', '👁️', midProds, '#ffffff')}
+                      {renderShelfTier('Bottom Shelf (Floor Bins & Value Packs)', '🧺', botProds, '#f8fafc')}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* ── Standard Grid View ─────────────────────────────────── */
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {products.map(p => {
+                  const inCart = cart.some(c => c.id === p.id)
+                  return (
+                    <div key={p.id} className="relative group flex flex-col">
+                      <ProductCard
+                        product={p}
+                        onClick={setViewProduct}
+                        onAddToCart={!isAdmin ? () => addToCart(p) : undefined}
+                        inCart={inCart}
+                      />
+
+                      {/* Admin Action Buttons */}
+                      {isAdmin && (
+                        <div className="absolute top-8 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditProduct(productToForm(p)) }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md transition-all hover:scale-110 bg-blue-600 text-white"
+                            title="Edit Product (Admin)"
+                          >✏️</button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setDeleteProduct(p) }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-md transition-all hover:scale-110 bg-red-600 text-white"
+                            title="Delete Product (Admin)"
+                          >🗑️</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
           )}
         </main>
       </div>
