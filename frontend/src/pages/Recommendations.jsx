@@ -42,7 +42,7 @@ export default function Recommendations() {
     } catch (err) {
       const msg = err.response?.data?.detail
       if (typeof msg === 'string' && msg.includes('API key')) {
-        setError('Claude API key not configured. Add ANTHROPIC_API_KEY to backend/.env')
+        setError('AI service error. Ensure backend is running with GROQ_API_KEY set.')
       } else {
         setError('Failed to get recommendations. Please try again.')
       }

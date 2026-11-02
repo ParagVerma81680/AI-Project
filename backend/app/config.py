@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"
 
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
 
     # ------------------------------------------------------------------
     # Pydantic v2 config

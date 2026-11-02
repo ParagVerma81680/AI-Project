@@ -157,7 +157,7 @@ export default function Comparison() {
     } catch (err) {
       const msg = err.response?.data?.detail
       if (typeof msg === 'string' && msg.includes('API key')) {
-        setError('Claude API key not configured. Add ANTHROPIC_API_KEY to backend/.env')
+        setError('AI service error. Ensure backend is running with GROQ_API_KEY set.')
       } else {
         setError('Comparison failed. Please try again.')
       }
@@ -267,7 +267,7 @@ export default function Comparison() {
           <Spinner />
           <div className="text-center">
             <p className="text-sm font-medium text-gray-600">Running all 4 paradigms…</p>
-            <p className="text-xs text-gray-400 mt-1">Making ~6 Claude API calls. This takes 20-40 seconds.</p>
+            <p className="text-xs text-gray-400 mt-1">Making ~6 AI calls via Groq. This takes 10-20 seconds.</p>
           </div>
           {/* Progress indicator */}
           <div className="flex gap-3 mt-2">
@@ -347,7 +347,7 @@ export default function Comparison() {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xl">🏆</span>
-              <p className="font-bold" style={{ color: '#14532d' }}>Claude's Verdict</p>
+              <p className="font-bold" style={{ color: '#14532d' }}>AI Verdict</p>
               <span className="text-xs text-gray-400">(1 extra AI call)</span>
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{result.verdict}</p>
