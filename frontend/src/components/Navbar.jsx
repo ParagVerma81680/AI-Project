@@ -1,22 +1,9 @@
-import { useState, useEffect } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import ApiKeyModal from './ApiKeyModal'
 
 export default function Navbar() {
   const { user, isAdmin, logoutAdmin } = useAuth()
   const navigate = useNavigate()
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
-  const [hasApiKey, setHasApiKey] = useState(false)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedKey = localStorage.getItem('smartmart_groq_api_key')
-      if (savedKey) {
-        setHasApiKey(true)
-      }
-    }
-  }, [])
 
   const adminLinks = [
     { to: '/', label: 'Home' },
@@ -47,7 +34,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 shadow-md transition-colors"
+    <header className="sticky top-0 z-40 shadow-md transition-colors"
       style={{
         backgroundColor: isAdmin ? '#1c1917' : '#14532d',
         borderBottom: isAdmin ? '2px solid #f59e0b' : '2px solid #16a34a'
@@ -65,17 +52,10 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Key status & trigger button */}
-          <button
-            type="button"
-            onClick={() => setApiKeyModalOpen(true)}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/60 text-emerald-300 font-mono transition-colors text-[10px]"
-            title="Configure Groq API Key"
-          >
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 font-mono text-[10px]">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span>AI BRAIN: GROQ ACTIVE</span>
-            <span className="text-[9px] opacity-70">⚙️</span>
-          </button>
+            <span>AI NEURAL ENGINE: ONLINE</span>
+          </span>
           <span className="text-gray-400">|</span>
           <span className="text-amber-300 font-bold">MODEL: QWEN 27B</span>
         </div>
@@ -131,29 +111,8 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* ── User Auth Controls & API Key Pill ─────────────────── */}
+          {/* ── User Auth Controls ───────────────────────────────── */}
           <div className="flex items-center gap-2">
-            {/* 3D Animated Presentation Link */}
-            <a
-              href="./presentation.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-cyan-200 bg-cyan-950/80 border border-cyan-500/60 hover:bg-cyan-900 transition-all flex items-center gap-1.5 shadow-sm hover:scale-105"
-              title="Open 3D Animated Presentation & Download PPTX"
-            >
-              <span className="animate-bounce">📽️</span>
-              <span className="font-extrabold tracking-wide">3D PPT</span>
-            </a>
-
-            <button
-              onClick={() => setApiKeyModalOpen(true)}
-              className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-emerald-300 bg-emerald-950/70 border border-emerald-700/60 hover:bg-emerald-900 transition-colors flex items-center gap-1"
-              title="Groq API Key Settings"
-            >
-              <span>🔑</span>
-              <span className="hidden sm:inline">API</span>
-            </button>
-
             {isAdmin ? (
               <button
                 onClick={handleLogoutAdmin}
@@ -198,9 +157,6 @@ export default function Navbar() {
           </NavLink>
         ))}
       </div>
-
-      {/* API Key Modal */}
-      <ApiKeyModal isOpen={apiKeyModalOpen} onClose={() => setApiKeyModalOpen(false)} />
     </header>
   )
 }

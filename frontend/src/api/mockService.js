@@ -22,7 +22,7 @@ const setStored = (key, val) => {
   } catch {}
 }
 
-// Get user configured Groq Key (from localStorage, settings, or fallback)
+// Get user configured Groq Key (from browser localStorage)
 function getGroqKey() {
   if (typeof window === 'undefined') return ''
   return localStorage.getItem('smartmart_groq_api_key') || ''

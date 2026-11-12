@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Navbar from './components/Navbar'
+import ChatbotWidget from './components/ChatbotWidget'
 import Home from './pages/Home'
 import Products from './pages/Products'
 import RoutePlanner from './pages/RoutePlanner'
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/agents" element={<Agents />} />
               <Route path="/comparison" element={<Comparison />} />
             </Routes>
+            <ChatbotWidget />
           </div>
         </HashRouter>
       </AuthProvider>
