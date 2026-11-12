@@ -291,13 +291,15 @@ export default function AdminDashboard() {
   const [authError, setAuthError]       = useState('')
   const [verifying, setVerifying]       = useState(false)
 
-  // Active Tab: 'inventory' | 'policies' | 'topology' | 'system'
+  // Active Tab: 'inventory' | 'orders' | 'policies' | 'topology' | 'system'
   const [activeTab, setActiveTab]       = useState('inventory')
 
   const [overview, setOverview]         = useState(null)
   const [products, setProducts]         = useState([])
   const [categories, setCategories]     = useState([])
   const [policies, setPolicies]         = useState([])
+  const [orders, setOrders]             = useState([])
+  const [orderFilter, setOrderFilter]   = useState('all')
   const [loading, setLoading]           = useState(true)
 
   const [search, setSearch]             = useState('')
@@ -318,16 +320,18 @@ export default function AdminDashboard() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [ovRes, prodRes, catRes, polRes] = await Promise.all([
+      const [ovRes, prodRes, catRes, polRes, ordRes] = await Promise.allSettled([
         client.get('/admin/overview'),
         client.get('/products/', { params: { limit: 100 } }),
         client.get('/recommendations/categories'),
         client.get('/policies/?active_only=false'),
+        client.get('/orders', { params: { session_id: 'all' } }),
       ])
-      setOverview(ovRes.data)
-      setProducts(prodRes.data?.products ?? [])
-      setCategories(catRes.data ?? [])
-      setPolicies(polRes.data?.policies ?? [])
+      if (ovRes.status === 'fulfilled') setOverview(ovRes.value.data)
+      if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data?.products ?? [])
+      if (catRes.status === 'fulfilled') setCategories(catRes.value.data ?? [])
+      if (polRes.status === 'fulfilled') setPolicies(polRes.value.data?.policies ?? [])
+      if (ordRes.status === 'fulfilled') setOrders(Array.isArray(ordRes.value.data) ? ordRes.value.data : [])
     } catch (err) {
       console.error(err)
     } finally {
@@ -399,6 +403,29 @@ export default function AdminDashboard() {
       loadAllData()
     } catch {
       alert('Bulk restock failed')
+    }
+  }
+
+  // Superuser Action: Order Status Management
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await client.patch(`/orders/${orderId}/status`, { status: newStatus })
+      showToast(`Order #${orderId} status transitioned to: ${newStatus.toUpperCase()}`)
+      loadAllData()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to update order status')
+    }
+  }
+
+  // Superuser Action: Cancel Order & Restore Inventory
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm(`Admin Action: Cancel order ${orderId}? This will automatically restore all product quantities back to live inventory.`)) return
+    try {
+      await client.post(`/orders/${orderId}/cancel`)
+      showToast(`Order ${orderId} cancelled and stock successfully restored!`)
+      loadAllData()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to cancel order')
     }
   }
 
@@ -532,6 +559,14 @@ export default function AdminDashboard() {
           }`}
         >
           📦 Inventory Management ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('orders')}
+          className={`px-4 py-2 rounded-xl transition-all ${
+            activeTab === 'orders' ? 'bg-amber-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🛍️ Customer Orders ({orders.length})
         </button>
         <button
           onClick={() => setActiveTab('policies')}
@@ -756,7 +791,232 @@ export default function AdminDashboard() {
           )}
 
           {/* ═════════════════════════════════════════════════════════
-              TAB 2: STORE POLICY RAG KNOWLEDGE BASE
+              TAB 2: CUSTOMER ORDERS & DISPATCH MANAGEMENT
+          ══════════════════════════════════════════════════════════ */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6">
+              {/* Top Orders Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Orders</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{orders.length}</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Deliveries</p>
+                  <p className="text-2xl font-black text-amber-600 mt-1">
+                    {orders.filter(o => ['confirmed', 'preparing', 'out_for_delivery'].includes(o.status)).length}
+                  </p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Revenue</p>
+                  <p className="text-2xl font-black text-emerald-600 mt-1">
+                    ₹{orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + (o.grand_total || 0), 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completed Deliveries</p>
+                  <p className="text-2xl font-black text-blue-600 mt-1">
+                    {orders.filter(o => o.status === 'delivered').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Status Filters & Refresh */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                  {[
+                    { id: 'all', label: 'All Orders' },
+                    { id: 'confirmed', label: 'Confirmed' },
+                    { id: 'preparing', label: 'Preparing' },
+                    { id: 'out_for_delivery', label: 'Out for Delivery' },
+                    { id: 'delivered', label: 'Delivered' },
+                    { id: 'cancelled', label: 'Cancelled' },
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => setOrderFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-xl transition-all ${
+                        orderFilter === f.id
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={loadAllData}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 transition-colors"
+                >
+                  <span>🔄</span>
+                  <span>Refresh Orders</span>
+                </button>
+              </div>
+
+              {/* Orders List */}
+              {orders.filter(o => orderFilter === 'all' || o.status === orderFilter).length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+                  <div className="text-4xl mb-2">📦</div>
+                  <h4 className="font-bold text-slate-800 text-base">No orders found in this view</h4>
+                  <p className="text-xs text-slate-500 mt-1">Customer orders placed through the website will appear here in real-time.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders
+                    .filter(o => orderFilter === 'all' || o.status === orderFilter)
+                    .map(order => {
+                      const isCancelled = order.status === 'cancelled'
+                      const isDelivered = order.status === 'delivered'
+
+                      return (
+                        <div
+                          key={order.id || order.order_id}
+                          className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 transition-all hover:shadow-md"
+                        >
+                          {/* Order Header */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg">🛍️</span>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-sm text-slate-900 font-mono">
+                                    #{order.order_id || order.id}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                      order.status === 'delivered'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : order.status === 'out_for_delivery'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : order.status === 'preparing'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : order.status === 'confirmed'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-rose-100 text-rose-800'
+                                    }`}
+                                  >
+                                    {order.status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                  {order.created_at ? new Date(order.created_at).toLocaleString('en-IN') : 'Just now'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="text-base font-black text-slate-900">₹{order.grand_total?.toFixed(2)}</p>
+                              <p className="text-[11px] text-slate-500 uppercase font-semibold">
+                                {order.payment_method} · <span className={order.payment_status === 'paid' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{order.payment_status}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Customer Details */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-3 text-xs border-b border-slate-100">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Customer</p>
+                              <p className="font-bold text-slate-800 mt-0.5">{order.recipient_name || 'Shopper'}</p>
+                              <p className="text-slate-500 font-mono text-[11px]">{order.phone_number}</p>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Delivery Address</p>
+                              <p className="text-slate-700 mt-0.5">{order.delivery_address}</p>
+                              {order.delivery_instructions && (
+                                <p className="text-slate-400 italic text-[11px] mt-0.5">Note: {order.delivery_instructions}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Order Items */}
+                          <div className="py-3">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Order Items ({order.items?.length || 0})</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {(order.items || []).map(item => (
+                                <div key={item.id || item.product_id} className="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between text-xs border border-slate-200/60">
+                                  <div>
+                                    <p className="font-bold text-slate-900">{item.product_name}</p>
+                                    <p className="text-[10px] text-slate-500">Aisle {item.aisle || '—'} · ₹{item.price} each</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                                      x{item.quantity}
+                                    </span>
+                                    <p className="text-[11px] font-black text-slate-700 mt-0.5">₹{item.item_total?.toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Admin Action Controls */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              Subtotal: ₹{order.subtotal?.toFixed(2)} · Fee: ₹{order.delivery_fee} · Tax: ₹{order.tax?.toFixed(2)}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              {order.status === 'confirmed' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id || order.order_id, 'preparing')}
+                                  className="px-3 py-1.5 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-colors"
+                                >
+                                  👨‍🍳 Start Packing ➔
+                                </button>
+                              )}
+
+                              {order.status === 'preparing' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id || order.order_id, 'out_for_delivery')}
+                                  className="px-3 py-1.5 rounded-xl font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors"
+                                >
+                                  🛵 Dispatch Delivery ➔
+                                </button>
+                              )}
+
+                              {order.status === 'out_for_delivery' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id || order.order_id, 'delivered')}
+                                  className="px-3 py-1.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+                                >
+                                  ✓ Mark Delivered
+                                </button>
+                              )}
+
+                              {!isCancelled && !isDelivered && (
+                                <button
+                                  onClick={() => handleCancelOrder(order.id || order.order_id)}
+                                  className="px-3 py-1.5 rounded-xl font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors"
+                                >
+                                  ✕ Cancel & Restock
+                                </button>
+                              )}
+
+                              {isCancelled && (
+                                <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                                  ✓ Stock Restored to Catalog
+                                </span>
+                              )}
+
+                              {isDelivered && (
+                                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                                  ✓ Order Successfully Completed
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════
+              TAB 3: STORE POLICY RAG KNOWLEDGE BASE
           ══════════════════════════════════════════════════════════ */}
           {activeTab === 'policies' && (
             <div className="space-y-4">

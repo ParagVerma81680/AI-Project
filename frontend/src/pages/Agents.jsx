@@ -59,16 +59,16 @@ export default function Agents() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* ── Header ────────────────────────────────────────────── */}
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 font-black text-xs uppercase tracking-widest border border-emerald-300 shadow-xs mb-2">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-cyan-400 font-mono font-bold text-xs uppercase tracking-widest border border-cyan-500/30 shadow-lg mb-2">
           <span>📻</span>
-          <span>Two-Way Floor Intercom Channel</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+          <span>SmartBot Capability · Staff Operations Intercom</span>
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
         </div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-          SmartMart <span style={{ color: '#16a34a' }}>Multi-Agent Radio</span>
+          SmartMart <span style={{ color: '#16a34a' }}>Staff Intercom Radio</span>
         </h1>
         <p className="text-xs text-gray-500 mt-1">
-          Store Operations Frequency 446.0 MHz · Customer Concierge ⇄ Floor Inventory Associate
+          Store Operations Frequency 446.0 MHz · Customer Concierge ⇄ Floor Associate · Controlled via SmartBot
         </p>
       </div>
 

@@ -48,6 +48,22 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GET /api/products/search  — explicit keyword search endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/search", summary="Search products by keyword")
+def search_products(
+    q: str = Query(..., min_length=1, description="Search query string"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    products, total = product_service.get_all_products(
+        db, search=q, limit=limit
+    )
+    return {"total": total, "query": q, "products": products}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GET /api/products  — list all products (with pagination + filters)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -164,6 +180,12 @@ def update_product(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Product with ID {product_id} not found.",
         )
+    try:
+        import asyncio
+        from app.core.websocket_manager import ws_manager
+        asyncio.create_task(ws_manager.broadcast_inventory_update(updated.id, updated.name, updated.stock))
+    except Exception:
+        pass
     return updated
 
 

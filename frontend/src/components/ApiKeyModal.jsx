@@ -6,7 +6,7 @@ export default function ApiKeyModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const existing = localStorage.getItem('smartmart_groq_api_key') || ''
+      const existing = localStorage.getItem('smartmart_groq_api_key') || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GROQ_API_KEY) || ''
       setKey(existing)
     }
   }, [isOpen])

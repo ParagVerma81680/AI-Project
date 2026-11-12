@@ -22,10 +22,12 @@ const setStored = (key, val) => {
   } catch {}
 }
 
-// Get user configured Groq Key (from browser localStorage)
+const DEFAULT_GROQ_KEY = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GROQ_API_KEY) || ''
+
+// Get user configured Groq Key (from browser localStorage or default active key)
 function getGroqKey() {
-  if (typeof window === 'undefined') return ''
-  return localStorage.getItem('smartmart_groq_api_key') || ''
+  if (typeof window === 'undefined') return DEFAULT_GROQ_KEY
+  return localStorage.getItem('smartmart_groq_api_key') || DEFAULT_GROQ_KEY
 }
 
 // Live Direct Call to Groq AI using user's key with Qwen 27B model
@@ -196,10 +198,161 @@ export async function handleMockRequest(config) {
   let products = getStored('smartmart_mock_products', INITIAL_PRODUCTS)
   let categories = getStored('smartmart_mock_categories', INITIAL_CATEGORIES)
   let policies = getStored('smartmart_mock_policies', INITIAL_POLICIES)
+  let mockCarts = getStored('smartmart_mock_carts', {})
+  let mockOrders = getStored('smartmart_mock_orders', [])
+
+  const sessionId = config.headers?.['X-Session-ID'] || params.session_id || data.session_id || 'guest_default'
+
+  const calcCart = (sid) => {
+    const rawItems = mockCarts[sid] || []
+    let subtotal = 0
+    const items = rawItems.map(it => {
+      const p = products.find(prod => prod.id === it.product_id) || {
+        name: 'Item',
+        price: it.price || 50,
+        stock: 10,
+        aisle: 'A1',
+        shelf: 'Mid',
+      }
+      const item_total = Number((p.price * it.quantity).toFixed(2))
+      subtotal += item_total
+      return {
+        id: it.id,
+        cart_id: 1,
+        product_id: it.product_id,
+        product_name: p.name,
+        brand: p.brand || '',
+        price: p.price,
+        quantity: it.quantity,
+        item_total,
+        aisle: p.aisle || 'A1',
+        shelf: p.shelf || 'Mid',
+        stock: p.stock ?? 10,
+        image_url: p.image_url || '',
+      }
+    })
+    const itemCount = items.reduce((sum, i) => sum + i.quantity, 0)
+    const delivery_fee = subtotal >= 499 || subtotal === 0 ? 0 : 29
+    const tax = Number((subtotal * 0.05).toFixed(2))
+    const grand_total = Number((subtotal + delivery_fee + tax).toFixed(2))
+    return {
+      id: 1,
+      session_id: sid,
+      items,
+      item_count: itemCount,
+      subtotal: Number(subtotal.toFixed(2)),
+      delivery_fee,
+      tax,
+      grand_total,
+      free_delivery_eligible: subtotal >= 499,
+      free_delivery_remaining: Math.max(0, Number((499 - subtotal).toFixed(2))),
+    }
+  }
 
   // 1. Health
-  if (url === '/health' || url === '') {
-    return { status: 200, data: { status: 'ok', project: 'SmartMart AI' } }
+  if (url === '/health' || url === '' || url === '/diagnostics') {
+    return {
+      status: 200,
+      data: {
+        status: 'ok',
+        project: 'SmartMart Autonomous AI Supermarket',
+        backend: 'Connected',
+        database: 'Connected (SQLite/PostgreSQL)',
+        llm_provider: 'Groq Hosted Llama / Qwen',
+        active_model: 'qwen/qwen3.8-27b',
+        response_time_ms: 24.5,
+        vector_rag: 'Operational (8 policy documents)',
+        products_count: products.length,
+      }
+    }
+  }
+
+  // ── AUTONOMOUS AI CHATBOT (POST /chat or /smartbot/chat) ───────────────────────────
+  if ((url === '/chat' || url === '/chat/' || url === '/smartbot/chat' || url === '/smartbot/chat/') && method === 'post') {
+    const q = data.message || ''
+    const convId = data.conversation_id || Date.now()
+
+    const productSnippet = products.slice(0, 25).map(p =>
+      `ID:${p.id} | ${p.name} | Rs.${p.price} | Stock:${p.stock} | Aisle:${p.aisle || 'A1'}`
+    ).join('\n')
+
+    const policySnippet = policies.slice(0, 6).map(p =>
+      `${p.title}: ${p.content}`
+    ).join('\n\n')
+
+    const systemPrompt = `You are SmartBot, the central autonomous supermarket assistant for SmartMart Supermarket powered by Meta Llama / Qwen.
+You have direct access to SmartMart's real-time inventory and knowledge base:
+
+STORE INVENTORY:
+${productSnippet}
+
+STORE POLICIES:
+${policySnippet}
+
+You are warm, helpful, polite, and intelligent.
+- Answer any question: greetings, general knowledge, explanations, math (e.g. 25*18 = 450), science, budget meal planning (e.g. Dinner for 2 under Rs. 300), Hindi/Hinglish.
+- If asked about supermarket items, prices, stock, or aisles, cite exact values from the inventory above.
+- If asked about store policies, returns, or refunds, ground your answer in store policies above.
+- If asked who made you, explain you are SmartBot, developed for the SmartMart Supermarket platform.
+- If store information is missing, admit it politely rather than hallucinating.`
+
+    const groqAnswer = await callGroqDirect(q, systemPrompt)
+    const finalAnswer = groqAnswer ||
+      `Hello! I am SmartBot, the central AI brain of SmartMart Supermarket. We have ${products.length} products available across 8 aisles including Dairy (Aisle A1), Bakery (Aisle A2), and Produce (Aisle C1/C2). How may I assist you today?`
+
+    // Save to conversation history
+    let storedConvs = getStored('smartmart_conversations', [])
+    let conv = storedConvs.find(c => c.id === convId)
+    if (!conv) {
+      conv = {
+        id: convId,
+        title: q.length > 28 ? q.slice(0, 28) + '...' : q,
+        messages: [],
+        created_at: new Date().toISOString(),
+      }
+      storedConvs.unshift(conv)
+    }
+    conv.messages.push({ role: 'user', message_content: q, created_at: new Date().toISOString() })
+    conv.messages.push({ role: 'assistant', message_content: finalAnswer, created_at: new Date().toISOString() })
+    setStored('smartmart_conversations', storedConvs)
+
+    return {
+      status: 200,
+      data: {
+        conversation_id: convId,
+        message: finalAnswer,
+        response: finalAnswer,
+        model_used: 'Qwen 27B / Meta Llama',
+        token_usage: 120,
+      }
+    }
+  }
+
+  // GET /conversations or /smartbot/conversations
+  if ((url === '/conversations' || url === '/conversations/' || url === '/smartbot/conversations' || url === '/smartbot/conversations/') && method === 'get') {
+    const storedConvs = getStored('smartmart_conversations', [])
+    return { status: 200, data: storedConvs }
+  }
+
+  // GET /conversations/:id or /smartbot/conversations/:id
+  const getConvMatch = url.match(/\/(?:smartbot\/)?conversations\/(\d+)/)
+  if (getConvMatch && method === 'get') {
+    const id = parseInt(getConvMatch[1])
+    const storedConvs = getStored('smartmart_conversations', [])
+    const found = storedConvs.find(c => c.id === id)
+    if (found) {
+      return { status: 200, data: found }
+    }
+    return { status: 404, data: { detail: 'Conversation not found' } }
+  }
+
+  // DELETE /conversations/:id or /smartbot/conversations/:id
+  if (getConvMatch && method === 'delete') {
+    const id = parseInt(getConvMatch[1])
+    let storedConvs = getStored('smartmart_conversations', [])
+    storedConvs = storedConvs.filter(c => c.id !== id)
+    setStored('smartmart_conversations', storedConvs)
+    return { status: 200, data: { message: 'Deleted' } }
   }
 
   // 2. Auth Login
@@ -396,6 +549,206 @@ export async function handleMockRequest(config) {
     })
     setStored('smartmart_mock_products', products)
     return { status: 200, data: { message: `Successfully restocked ${count} products to ${minStock} units.` } }
+  }
+
+  // ── CART ENDPOINTS (MOCK FALLBACK) ───────────────────────────────
+  if ((url === '/cart' || url === '/cart/') && method === 'get') {
+    return { status: 200, data: calcCart(sessionId) }
+  }
+
+  if ((url === '/cart/items' || url === '/cart/items/') && method === 'post') {
+    const sid = data.session_id || sessionId
+    const pid = data.product_id
+    const qty = data.quantity || 1
+    const p = products.find(prod => prod.id === pid)
+    if (!p) {
+      return { status: 404, data: { detail: 'Product not found' } }
+    }
+    if ((p.stock ?? 10) < qty) {
+      return { status: 400, data: { detail: `Only ${p.stock ?? 0} units left in stock` } }
+    }
+
+    let items = mockCarts[sid] || []
+    const existing = items.find(i => i.product_id === pid)
+    if (existing) {
+      if (existing.quantity + qty > (p.stock ?? 10)) {
+        return { status: 400, data: { detail: `Cannot add more. Only ${p.stock} units available.` } }
+      }
+      existing.quantity += qty
+    } else {
+      items.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        product_id: pid,
+        quantity: qty,
+        price: p.price,
+      })
+    }
+    mockCarts[sid] = items
+    setStored('smartmart_mock_carts', mockCarts)
+    return { status: 200, data: calcCart(sid) }
+  }
+
+  const putCartMatch = url.match(/\/cart\/items\/(\d+)/)
+  if (putCartMatch && method === 'put') {
+    const itemId = parseInt(putCartMatch[1])
+    const sid = data.session_id || sessionId
+    const newQty = data.quantity
+    let items = mockCarts[sid] || []
+    const idx = items.findIndex(i => i.id === itemId)
+    if (idx !== -1) {
+      if (newQty <= 0) {
+        items.splice(idx, 1)
+      } else {
+        const p = products.find(prod => prod.id === items[idx].product_id)
+        if (p && newQty > (p.stock ?? 10)) {
+          return { status: 400, data: { detail: `Cannot exceed available stock of ${p.stock}` } }
+        }
+        items[idx].quantity = newQty
+      }
+      mockCarts[sid] = items
+      setStored('smartmart_mock_carts', mockCarts)
+    }
+    return { status: 200, data: calcCart(sid) }
+  }
+
+  const delCartMatch = url.match(/\/cart\/items\/(\d+)/)
+  if (delCartMatch && method === 'delete') {
+    const itemId = parseInt(delCartMatch[1])
+    let items = mockCarts[sessionId] || []
+    items = items.filter(i => i.id !== itemId)
+    mockCarts[sessionId] = items
+    setStored('smartmart_mock_carts', mockCarts)
+    return { status: 200, data: calcCart(sessionId) }
+  }
+
+  if ((url === '/cart' || url === '/cart/') && method === 'delete') {
+    mockCarts[sessionId] = []
+    setStored('smartmart_mock_carts', mockCarts)
+    return { status: 200, data: calcCart(sessionId) }
+  }
+
+  // ── ORDERS ENDPOINTS (MOCK FALLBACK) ──────────────────────────────
+  if ((url === '/orders/checkout' || url === '/orders/checkout/') && method === 'post') {
+    const sid = data.session_id || sessionId
+    const cartState = calcCart(sid)
+    if (cartState.items.length === 0) {
+      return { status: 400, data: { detail: 'Cannot checkout with an empty cart' } }
+    }
+
+    // Atomic Stock deduction
+    for (const item of cartState.items) {
+      const pIdx = products.findIndex(p => p.id === item.product_id)
+      if (pIdx !== -1) {
+        if ((products[pIdx].stock ?? 0) < item.quantity) {
+          return { status: 400, data: { detail: `Insufficient stock for ${item.product_name}` } }
+        }
+        products[pIdx].stock = Math.max(0, products[pIdx].stock - item.quantity)
+      }
+    }
+    setStored('smartmart_mock_products', products)
+
+    const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000)
+    const newOrder = {
+      id: Date.now(),
+      order_id: orderId,
+      session_id: sid,
+      user_id: 2,
+      recipient_name: data.recipient_name,
+      phone_number: data.phone_number,
+      delivery_address: data.delivery_address,
+      delivery_instructions: data.delivery_instructions || null,
+      payment_method: data.payment_method || 'cod',
+      payment_status: data.payment_method === 'cod' ? 'pending' : 'paid',
+      status: 'confirmed',
+      subtotal: cartState.subtotal,
+      delivery_fee: cartState.delivery_fee,
+      tax: cartState.tax,
+      grand_total: cartState.grand_total,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      items: cartState.items.map(it => ({
+        id: it.id,
+        order_id: Date.now(),
+        product_id: it.product_id,
+        product_name: it.product_name,
+        brand: it.brand,
+        price: it.price,
+        quantity: it.quantity,
+        item_total: it.item_total,
+        aisle: it.aisle,
+      })),
+    }
+
+    mockOrders.unshift(newOrder)
+    setStored('smartmart_mock_orders', mockOrders)
+
+    // Clear cart after checkout
+    mockCarts[sid] = []
+    setStored('smartmart_mock_carts', mockCarts)
+
+    return { status: 200, data: newOrder }
+  }
+
+  // Get orders list
+  if ((url === '/orders' || url === '/orders/') && method === 'get') {
+    const sid = params.session_id || sessionId
+    const userOrders = mockOrders.filter(o => !sid || o.session_id === sid || sid === 'all')
+    return { status: 200, data: userOrders.length > 0 ? userOrders : mockOrders }
+  }
+
+  // Get single order
+  const getOrderMatch = url.match(/\/orders\/([A-Za-z0-9_-]+)/)
+  if (getOrderMatch && method === 'get' && !url.includes('/cancel') && !url.includes('/status')) {
+    const ident = getOrderMatch[1]
+    const order = mockOrders.find(o => String(o.id) === ident || o.order_id === ident)
+    if (!order) {
+      return { status: 404, data: { detail: 'Order not found' } }
+    }
+    return { status: 200, data: order }
+  }
+
+  // Cancel order & restore stock
+  const cancelOrderMatch = url.match(/\/orders\/([A-Za-z0-9_-]+)\/cancel/)
+  if (cancelOrderMatch && method === 'post') {
+    const ident = cancelOrderMatch[1]
+    const order = mockOrders.find(o => String(o.id) === ident || o.order_id === ident)
+    if (!order) {
+      return { status: 404, data: { detail: 'Order not found' } }
+    }
+    if (order.status !== 'confirmed' && order.status !== 'preparing') {
+      return { status: 400, data: { detail: `Order in '${order.status}' stage cannot be cancelled` } }
+    }
+
+    // Restore stock
+    for (const item of (order.items || [])) {
+      const pIdx = products.findIndex(p => p.id === item.product_id)
+      if (pIdx !== -1) {
+        products[pIdx].stock = (products[pIdx].stock || 0) + item.quantity
+      }
+    }
+    setStored('smartmart_mock_products', products)
+
+    order.status = 'cancelled'
+    order.updated_at = new Date().toISOString()
+    setStored('smartmart_mock_orders', mockOrders)
+
+    return { status: 200, data: { message: `Order ${order.order_id} cancelled and stock restored`, order } }
+  }
+
+  // Update order status (Admin)
+  const statusOrderMatch = url.match(/\/orders\/([A-Za-z0-9_-]+)\/status/)
+  if (statusOrderMatch && (method === 'patch' || method === 'put')) {
+    const ident = statusOrderMatch[1]
+    const order = mockOrders.find(o => String(o.id) === ident || o.order_id === ident)
+    if (!order) {
+      return { status: 404, data: { detail: 'Order not found' } }
+    }
+    if (data.status) {
+      order.status = data.status
+      order.updated_at = new Date().toISOString()
+      setStored('smartmart_mock_orders', mockOrders)
+    }
+    return { status: 200, data: order }
   }
 
   // 12. Policies List

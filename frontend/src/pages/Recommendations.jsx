@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import client from '../api/client'
+import { useCart } from '../context/CartContext'
 import Spinner from '../components/Spinner'
 
+const PRESET_QUERIES = [
+  { label: '🍽️ Dinner for 2 under ₹300', query: 'Suggest dinner for two under 300', budget: 300 },
+  { label: '🥞 Breakfast for 4 under ₹250', query: 'Suggest breakfast for four people under 250', budget: 250 },
+  { label: '💪 High-Protein Veg Basket', query: 'High-protein vegetarian shopping list with milk, paneer, and nuts', budget: 450 },
+  { label: '🍿 Movie Night Snacks', query: 'Snacks and drinks for movie night', budget: 200 },
+  { label: '🥗 Fresh Salad & Immunity', query: 'Fresh fruits and vegetables for healthy salad', budget: 200 },
+  { label: '🌾 Weekly Pantry Restock', query: 'Weekly grocery essentials under 2000', budget: 2000 },
+]
+
 export default function Recommendations() {
+  const { addToCart, cart: liveCart } = useCart()
+  const navigate = useNavigate()
+
   const [preferences, setPreferences] = useState('')
   const [budget, setBudget] = useState('')
   const [selectedCategories, setSelectedCategories] = useState([])
@@ -12,6 +26,11 @@ export default function Recommendations() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [smartCartItems, setSmartCartItems] = useState([])
+
+  const applyPreset = (preset) => {
+    setPreferences(preset.query)
+    setBudget(String(preset.budget))
+  }
 
   useEffect(() => {
     client.get('/recommendations/categories')
@@ -55,6 +74,8 @@ export default function Recommendations() {
   const addToSmartCart = (item) => {
     if (!smartCartItems.some(i => i.id === item.id)) {
       setSmartCartItems(prev => [...prev, item])
+      // Synchronize with global e-commerce shopping cart
+      addToCart(item, 1)
     }
   }
 
@@ -114,7 +135,26 @@ export default function Recommendations() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left 2 Cols: Form & Recommendations Results */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
+              {/* Quick AI Prompt Presets */}
+              <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+                <p className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider mb-2">
+                  ⚡ Tap a Shopping Goal to Auto-Fill:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_QUERIES.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-900 text-slate-200 border border-slate-700 hover:border-emerald-400 hover:bg-slate-700 transition-all flex items-center gap-1 shadow-xs"
+                    >
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Query Form */}
               <form
                 onSubmit={handleSubmit}
@@ -369,9 +409,14 @@ export default function Recommendations() {
                   </div>
                 )}
 
-                <div className="p-3 rounded-xl bg-green-950 border border-green-800 text-center text-xs">
-                  <p className="font-bold text-green-300">Ready to walk to Checkout?</p>
-                  <p className="text-[10px] text-green-400/80 mt-0.5">Push cart to Lane 1, 2, or 3 near exit</p>
+                <div className="p-3 rounded-xl bg-green-950 border border-green-800 text-center text-xs space-y-2">
+                  <p className="font-bold text-green-300">Ready to walk the aisles?</p>
+                  <Link
+                    to="/planner"
+                    className="block w-full py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all text-center"
+                  >
+                    🗺️ View In-Store Route in 3D ➔
+                  </Link>
                 </div>
               </div>
             </div>

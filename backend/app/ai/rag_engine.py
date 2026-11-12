@@ -1,184 +1,197 @@
-"""
-RAG Engine — Retrieval-Augmented Generation for store policies.
-
-What is RAG?
-  Instead of asking Claude "what is the return policy?" from memory,
-  we first RETRIEVE the actual policy text from our database,
-  then AUGMENT Claude's prompt with that text,
-  so Claude GENERATES an answer grounded in real store data.
-
-  This prevents hallucination — Claude can only say what's in our policies.
-
-Retrieval method:
-  We use TF-IDF-style keyword scoring — no vector database needed.
-  For a college project this is accurate enough and easy to explain.
-
-  How it works:
-    1. Tokenise the user question into keywords.
-    2. Score each policy document by how many keywords it contains.
-    3. Return the top-K highest scoring documents as context.
-
-Usage:
-    from app.ai.rag_engine import retrieve_relevant_policies, answer_policy_question
-"""
-
-from __future__ import annotations
-
-import re
-import math
-from typing import List
-
+from typing import List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
-from app.models.policy         import PolicyDocument
-from app.ai.claude_client      import chat
-from app.ai.prompt_builder     import build_policy_qa_prompt
+from app.core.config import settings
+from app.core.logging import logger
+from app.database.models import KnowledgeBase
+from app.ai.embeddings import embedding_service
 
+class RAGEngine:
+    """
+    Retrieval-Augmented Generation Engine.
+    Searches the KnowledgeBase table using vector similarity.
+    """
+    def __init__(self, top_k: int = 4, threshold: float = 0.05):
+        self.top_k = top_k
+        self.threshold = threshold
+
+    def retrieve(self, db: Session, query: str, top_k: int = None, category_filter: str = None) -> List[Dict[str, Any]]:
+        k = top_k or self.top_k
+        query_embedding = embedding_service.embed_text(query)
+
+        # Check if database dialect supports pgvector native distance operator (<=>)
+        dialect_name = db.bind.dialect.name if db.bind else ""
+        if dialect_name == "postgresql":
+            try:
+                # Use native pgvector cosine distance: embedding <=> query_embedding
+                query_str = """
+                    SELECT id, title, content, category, source,
+                           1 - (embedding <=> CAST(:query_vec AS vector)) AS similarity
+                    FROM knowledge_base
+                """
+                params = {"query_vec": str(query_embedding)}
+                if category_filter:
+                    query_str += " WHERE category = :cat"
+                    params["cat"] = category_filter
+                query_str += " ORDER BY similarity DESC LIMIT :k;"
+                params["k"] = k
+
+                results = db.execute(text(query_str), params).fetchall()
+                hits = []
+                for row in results:
+                    sim = float(row.similarity) if row.similarity is not None else 0.0
+                    if sim >= self.threshold:
+                        hits.append({
+                            "id": row.id,
+                            "title": row.title,
+                            "content": row.content,
+                            "category": row.category,
+                            "source": row.source,
+                            "similarity": round(sim, 4)
+                        })
+                if hits:
+                    return hits
+            except Exception as e:
+                logger.warning(f"Native pgvector query failed, falling back to Python cosine search: {e}")
+
+        # Python / NumPy Cosine Search (Works universally on SQLite & PostgreSQL)
+        kb_query = db.query(KnowledgeBase)
+        if category_filter:
+            kb_query = kb_query.filter(KnowledgeBase.category == category_filter)
+        all_docs = kb_query.all()
+
+        scored_docs: List[Tuple[float, KnowledgeBase]] = []
+        for doc in all_docs:
+            if doc.embedding is not None:
+                sim = embedding_service.cosine_similarity(query_embedding, doc.embedding)
+            else:
+                # Fallback to lexical token overlap if embedding not computed
+                q_words = set(query.lower().split())
+                d_words = set(f"{doc.title} {doc.content}".lower().split())
+                overlap = len(q_words.intersection(d_words)) / max(len(q_words), 1)
+                sim = float(overlap)
+
+            # Also score lexical overlap
+            q_words = set(query.lower().split())
+            d_words = set(f"{doc.title} {doc.content}".lower().split())
+            overlap = len(q_words.intersection(d_words)) / max(len(q_words), 1)
+            final_score = max(sim, overlap * 0.5)
+
+            if final_score >= self.threshold:
+                scored_docs.append((final_score, doc))
+
+        # Check PolicyDocument table as well if KnowledgeBase yields few hits
+        if len(scored_docs) < k:
+            from app.database.models import PolicyDocument
+            policies = db.query(PolicyDocument).filter(PolicyDocument.is_active == True).all()
+            for pol in policies:
+                q_words = set(query.lower().split())
+                p_words = set(f"{pol.title} {pol.content}".lower().split())
+                overlap = len(q_words.intersection(p_words)) / max(len(q_words), 1)
+                if overlap > 0.1:
+                    scored_docs.append((overlap, pol))
+
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        top_docs = scored_docs[:k]
+
+        return [
+            {
+                "id": doc.id,
+                "title": doc.title,
+                "content": doc.content,
+                "category": doc.category,
+                "source": doc.source,
+                "similarity": round(sim, 4)
+            }
+            for sim, doc in top_docs
+        ]
+
+rag_engine = RAGEngine()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stop words (common words that don't help retrieval)
+# Backward-compatibility helpers for legacy routes (/api/policies/ask)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_STOP_WORDS = {
-    "a", "an", "the", "is", "it", "in", "on", "at", "to", "for",
-    "of", "and", "or", "but", "not", "with", "do", "does", "can",
-    "will", "what", "how", "when", "where", "who", "i", "my", "me",
-    "we", "our", "you", "your", "be", "are", "was", "were", "have",
-    "has", "had", "this", "that", "these", "those", "about", "if",
-}
+def retrieve_relevant_policies(db: Session, question: str, top_k: int = 3) -> List[Any]:
+    from app.database.models import PolicyDocument
+    hits = rag_engine.retrieve(db, question, top_k=top_k)
+    titles = [h["title"] for h in hits]
+    docs = db.query(PolicyDocument).filter(PolicyDocument.title.in_(titles)).all()
+    if not docs:
+        docs = db.query(PolicyDocument).limit(top_k).all()
+    return docs
 
+async def async_answer_policy_question(db: Session, question: str, top_k: int = 3) -> Dict[str, Any]:
+    from app.ai.llm_provider import get_llm_provider
 
-def _tokenise(text: str) -> List[str]:
-    """Lowercase, strip punctuation, remove stop words."""
-    tokens = re.findall(r"[a-zA-Z]+", text.lower())
-    return [t for t in tokens if t not in _STOP_WORDS and len(t) > 2]
+    hits = rag_engine.retrieve(db, question, top_k=top_k)
+    context_text = "\n\n".join([f"[{h['title']}]: {h['content']}" for h in hits])
+    sources_used = [h["title"] for h in hits]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TF-IDF keyword scoring
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _score_document(doc_text: str, query_tokens: List[str]) -> float:
-    """
-    Score a document against a query using TF-IDF-inspired keyword matching.
-
-    TF  (Term Frequency)  = how often the query word appears in the document
-    IDF (Inverse Doc Freq)= rarer words get higher weight (log scale)
-
-    Returns a float score — higher means more relevant.
-    """
-    if not query_tokens:
-        return 0.0
-
-    doc_tokens  = _tokenise(doc_text)
-    doc_len     = len(doc_tokens) or 1
-    doc_counter = {}
-    for t in doc_tokens:
-        doc_counter[t] = doc_counter.get(t, 0) + 1
-
-    score = 0.0
-    for token in query_tokens:
-        tf = doc_counter.get(token, 0) / doc_len
-        # Simple IDF boost: rarer tokens (shorter queries) matter more
-        idf = math.log(1 + 1 / (query_tokens.count(token) or 1))
-        score += tf * idf
-
-    return score
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public functions
-# ─────────────────────────────────────────────────────────────────────────────
-
-def retrieve_relevant_policies(
-    db:          Session,
-    question:    str,
-    top_k:       int = 3,
-    min_score:   float = 0.0,
-) -> List[PolicyDocument]:
-    """
-    Retrieve the most relevant policy documents for a given question.
-
-    Args:
-        db:        Database session.
-        question:  The customer's question.
-        top_k:     How many policy documents to return (default: 3).
-        min_score: Minimum relevance score to include a document.
-
-    Returns:
-        List of PolicyDocument objects, ordered by relevance (most relevant first).
-    """
-    all_policies = db.query(PolicyDocument).filter(PolicyDocument.is_active == True).all()
-
-    if not all_policies:
-        return []
-
-    query_tokens = _tokenise(question)
-
-    # Score every policy document
-    scored = []
-    for policy in all_policies:
-        # Score both title and content (title gets a 3× boost)
-        title_score   = _score_document(policy.title,   query_tokens) * 3
-        content_score = _score_document(policy.content, query_tokens)
-        total_score   = title_score + content_score
-
-        if total_score > min_score:
-            scored.append((total_score, policy))
-
-    # Sort by score descending and return top K
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [policy for _, policy in scored[:top_k]]
-
-
-def answer_policy_question(
-    db:       Session,
-    question: str,
-    top_k:    int = 3,
-) -> dict:
-    """
-    Full RAG pipeline — retrieve relevant policies, call Claude, return answer.
-
-    Args:
-        db:       Database session.
-        question: The customer's question.
-        top_k:    Number of policy chunks to feed Claude as context.
-
-    Returns:
-        {
-          "answer":        str,   ← Claude's answer
-          "sources_used":  list,  ← policy titles used as context
-          "retrieved_count": int, ← how many policies were retrieved
-        }
-    """
-    # Step 1 — Retrieve
-    relevant_docs = retrieve_relevant_policies(db, question, top_k=top_k)
-
-    # Step 2 — Build context chunks
-    context_chunks = []
-    sources_used   = []
-
-    for doc in relevant_docs:
-        chunk = f"[{doc.title}]\n{doc.content}"
-        context_chunks.append(chunk)
-        sources_used.append(doc.title)
-
-    # Step 3 — Build prompt
-    system_prompt, user_message = build_policy_qa_prompt(
-        question=question,
-        context_chunks=context_chunks,
+    system_prompt = (
+        "You are SmartMart's authoritative store policy assistant. "
+        "Answer the user's inquiry strictly based on the verified policy clauses provided below. "
+        "If a specific detail is not covered, advise them to visit the Customer Service Desk at Aisle 1.\n\n"
+        f"STORE POLICIES CONTEXT:\n{context_text}"
     )
 
-    # Step 4 — Call Claude
-    answer = chat(
-        user=user_message,
-        system=system_prompt,
-        max_tokens=512,
-        temperature=0.2,   # low temperature = more factual
-    )
+    provider = get_llm_provider()
+    try:
+        answer = await provider.generate(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.3,
+            max_tokens=600
+        )
+    except Exception as e:
+        logger.warning(f"Llama policy completion fallback: {e}")
+        answer = (
+            f"Based on SmartMart store records: {hits[0]['content'] if hits else 'Please consult our store manager at Aisle 1.'}"
+        )
 
     return {
-        "answer":          answer,
-        "sources_used":    sources_used,
-        "retrieved_count": len(relevant_docs),
+        "answer": answer,
+        "sources_used": sources_used,
+        "retrieved_count": len(hits)
     }
+
+def answer_policy_question(db: Session, question: str, top_k: int = 3) -> Dict[str, Any]:
+    from app.ai.llm_provider import get_llm_provider
+    import asyncio
+
+    hits = rag_engine.retrieve(db, question, top_k=top_k)
+    context_text = "\n\n".join([f"[{h['title']}]: {h['content']}" for h in hits])
+    sources_used = [h["title"] for h in hits]
+
+    system_prompt = (
+        "You are SmartMart's authoritative store policy assistant. "
+        "Answer the user's inquiry strictly based on the verified policy clauses provided below. "
+        "If a specific detail is not covered, advise them to visit the Customer Service Desk at Aisle 1.\n\n"
+        f"STORE POLICIES CONTEXT:\n{context_text}"
+    )
+
+    provider = get_llm_provider()
+    try:
+        answer = asyncio.run(provider.generate(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ],
+            temperature=0.3,
+            max_tokens=600
+        ))
+    except Exception as e:
+        logger.warning(f"Llama policy completion fallback: {e}")
+        answer = (
+            f"Based on SmartMart store records: {hits[0]['content'] if hits else 'Please consult our store manager at Aisle 1.'}"
+        )
+
+    return {
+        "answer": answer,
+        "sources_used": sources_used,
+        "retrieved_count": len(hits)
+    }
+

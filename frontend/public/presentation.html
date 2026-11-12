@@ -3,21 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SmartMart (CSE276) - 3D Animated Executive Presentation</title>
+  <title>SmartMart – AI Retail Store Assistant | Cinematic 3D Presentation</title>
+  
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CDN Libraries: Three.js + GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
   <style>
     :root {
-      --bg-dark: #070d18;
-      --bg-surface: #0f172a;
-      --card-bg: rgba(30, 41, 59, 0.7);
-      --border-color: rgba(71, 85, 105, 0.4);
+      --bg-dark: #040813;
+      --bg-surface: #0a1329;
+      --card-bg: rgba(13, 25, 48, 0.72);
+      --border-color: rgba(56, 189, 248, 0.22);
+      --border-glow: rgba(6, 182, 212, 0.45);
+      --accent-cyan: #00d4ff;
+      --accent-electric: #38bdf8;
       --accent-emerald: #10b981;
-      --accent-cyan: #06b6d4;
-      --accent-amber: #f59e0b;
+      --accent-violet: #8b5cf6;
       --accent-rose: #f43f5e;
-      --accent-purple: #a855f7;
+      --accent-amber: #f59e0b;
       --text-white: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -38,21 +47,35 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
-      perspective: 1200px;
+      perspective: 1400px;
     }
 
-    /* Ambient Canvas */
-    #ambient-canvas {
+    /* Background Three.js canvas */
+    #webgl-bg {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 0;
+      z-index: 1;
       pointer-events: none;
     }
 
-    /* Top Floating Header */
+    /* Ambient Scanline overlay */
+    .scanlines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 6px 100%;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.65;
+    }
+
+    /* Cinematic Header */
     header {
       position: relative;
       z-index: 50;
@@ -61,90 +84,91 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 2rem;
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(16px);
+      background: rgba(7, 13, 26, 0.82);
+      backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.85rem;
     }
 
     .brand-logo {
-      width: 34px;
-      height: 34px;
-      background: linear-gradient(135deg, #10b981, #06b6d4);
-      border-radius: 8px;
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #00d4ff, #8b5cf6);
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .brand-text h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.15rem;
       font-weight: 800;
-      font-size: 1.1rem;
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+      letter-spacing: 0.08em;
+      background: linear-gradient(135deg, #ffffff 40%, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .brand-title {
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-
-    .badge-cse {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.4);
-      color: var(--accent-emerald);
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 700;
+    .brand-text p {
+      font-size: 0.68rem;
+      color: var(--accent-cyan);
+      font-family: 'JetBrains Mono', monospace;
       letter-spacing: 0.05em;
     }
 
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.45rem 1rem;
-      border-radius: 8px;
-      font-size: 0.82rem;
+    .action-btn {
+      background: rgba(20, 36, 68, 0.7);
+      border: 1px solid var(--border-color);
+      color: var(--text-white);
+      padding: 0.45rem 0.9rem;
+      border-radius: 10px;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(10px);
     }
 
-    .btn-secondary {
-      background: rgba(51, 65, 85, 0.6);
-      color: var(--text-white);
-      border: 1px solid var(--border-color);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(71, 85, 105, 0.9);
+    .action-btn:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
       transform: translateY(-1px);
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    .action-btn.primary {
+      background: linear-gradient(135deg, #00d4ff, #3b82f6);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #030712;
+      font-weight: 800;
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
     }
 
-    .btn-primary:hover {
-      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
-      transform: translateY(-1px);
+    .action-btn.primary:hover {
+      box-shadow: 0 0 25px rgba(0, 212, 255, 0.7);
+      transform: translateY(-2px);
     }
 
-    /* 3D Viewport */
+    /* 3D Presentation Viewport */
     .viewport {
       position: relative;
       flex: 1;
@@ -152,96 +176,190 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      perspective: 1400px;
+      perspective: 1600px;
       z-index: 10;
       overflow: hidden;
     }
 
     .slides-container {
       position: relative;
-      width: 88vw;
-      max-width: 1300px;
-      height: 78vh;
+      width: 90vw;
+      max-width: 1350px;
+      height: 80vh;
       transform-style: preserve-3d;
       transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Slide Component */
+    /* Base Slide Structure */
     .slide {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(15, 23, 42, 0.82);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(71, 85, 105, 0.5);
-      border-radius: 24px;
-      padding: 2.8rem 3.2rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
-                  0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+      background: rgba(10, 20, 42, 0.82);
+      backdrop-filter: blur(28px);
+      border: 1px solid var(--border-color);
+      border-radius: 28px;
+      padding: 2.8rem 3.4rem;
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8),
+                  0 0 0 1px rgba(255, 255, 255, 0.08) inset;
       opacity: 0;
       pointer-events: none;
       transform-style: preserve-3d;
-      transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
-      transform: translateZ(-400px) rotateY(30deg);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent-cyan) transparent;
     }
 
+    .slide::-webkit-scrollbar {
+      width: 4px;
+    }
+    .slide::-webkit-scrollbar-thumb {
+      background: var(--accent-cyan);
+      border-radius: 4px;
+    }
+
+    /* Multi-Mode 3D Transitions */
+    /* Transition 1: Standard Active */
     .slide.active {
       opacity: 1;
       pointer-events: auto;
-      transform: translateZ(0px) rotateY(0deg);
+      transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1) !important;
       z-index: 20;
     }
 
+    /* Mode A: 3D Cube Rotation (Slide 1, 7, 13) */
+    .slide[data-transition="cube"].prev {
+      opacity: 0;
+      transform: translate3d(-100%, 0, -500px) rotateY(-90deg);
+    }
+    .slide[data-transition="cube"].next {
+      opacity: 0;
+      transform: translate3d(100%, 0, -500px) rotateY(90deg);
+    }
+
+    /* Mode B: Book Page Flip (Slide 2, 8, 14) */
+    .slide[data-transition="book"].prev {
+      opacity: 0;
+      transform-origin: left center;
+      transform: rotateY(-110deg) translateZ(-200px);
+    }
+    .slide[data-transition="book"].next {
+      opacity: 0;
+      transform-origin: right center;
+      transform: rotateY(110deg) translateZ(-200px);
+    }
+
+    /* Mode C: Vertical Flip (Slide 3, 9, 15) */
+    .slide[data-transition="vflip"].prev {
+      opacity: 0;
+      transform: translateY(-80%) rotateX(70deg) translateZ(-300px);
+    }
+    .slide[data-transition="vflip"].next {
+      opacity: 0;
+      transform: translateY(80%) rotateX(-70deg) translateZ(-300px);
+    }
+
+    /* Mode D: Camera Depth Zoom (Slide 4, 10, 16) */
+    .slide[data-transition="zoom"].prev {
+      opacity: 0;
+      transform: scale(2) translateZ(400px);
+      filter: blur(12px);
+    }
+    .slide[data-transition="zoom"].next {
+      opacity: 0;
+      transform: scale(0.3) translateZ(-900px);
+      filter: blur(8px);
+    }
+
+    /* Mode E: Perspective Panel Orbit (Slide 5, 11, 17) */
+    .slide[data-transition="panel"].prev {
+      opacity: 0;
+      transform: translateX(-60%) rotateY(-45deg) translateZ(-400px);
+    }
+    .slide[data-transition="panel"].next {
+      opacity: 0;
+      transform: translateX(60%) rotateY(45deg) translateZ(-400px);
+    }
+
+    /* Mode F: Layered Depth Slide (Slide 6, 12, 18) */
+    .slide[data-transition="layer"].prev {
+      opacity: 0;
+      transform: translateY(-40px) translateZ(-600px) rotateX(15deg);
+    }
+    .slide[data-transition="layer"].next {
+      opacity: 0;
+      transform: translateY(40px) translateZ(-600px) rotateX(-15deg);
+    }
+
+    /* Fallback default transition */
     .slide.prev {
       opacity: 0;
-      transform: translateZ(-500px) rotateY(-45deg) translateX(-60%);
+      transform: translate3d(-50%, 0, -400px) rotateY(-35deg);
     }
-
     .slide.next {
       opacity: 0;
-      transform: translateZ(-500px) rotateY(45deg) translateX(60%);
+      transform: translate3d(50%, 0, -400px) rotateY(35deg);
     }
 
-    /* 3D Tilt Card */
+    /* 3D Tilt Cards inside slides */
     .tilt-card {
-      background: rgba(30, 41, 59, 0.65);
-      border: 1px solid rgba(71, 85, 105, 0.45);
-      border-radius: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
       padding: 1.5rem;
-      transition: transform 0.15s ease-out, box-shadow 0.25s ease;
+      transition: transform 0.15s ease-out, box-shadow 0.25s ease, border-color 0.25s ease;
       transform-style: preserve-3d;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5);
+      position: relative;
     }
 
     .tilt-card:hover {
-      box-shadow: 0 20px 35px -10px rgba(16, 185, 129, 0.2), 0 0 20px rgba(6, 182, 212, 0.15);
-      border-color: rgba(16, 185, 129, 0.5);
+      box-shadow: 0 20px 40px -10px rgba(0, 212, 255, 0.25), 0 0 25px rgba(6, 182, 212, 0.2);
+      border-color: var(--accent-cyan);
     }
 
-    /* Typography & Layouts */
+    /* Slide Typography */
     .slide-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      font-weight: 700;
+      gap: 8px;
+      font-size: 0.75rem;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--accent-emerald);
+      letter-spacing: 0.12em;
+      color: var(--accent-cyan);
       margin-bottom: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .slide-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
     }
 
     .slide-title {
-      font-size: 2.2rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.1rem;
       font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
-      margin-bottom: 1.5rem;
-      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1);
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      margin-bottom: 1.4rem;
+      background: linear-gradient(135deg, #ffffff 40%, #38bdf8 80%, #8b5cf6 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -250,31 +368,29 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      position: relative;
+      justify-content: center;
     }
 
+    /* Grids */
     .grid-2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.8rem;
-      height: 100%;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
     }
 
     .grid-3 {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1.5rem;
-      height: 100%;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.4rem;
     }
 
     .grid-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 1.2rem;
-      height: 100%;
     }
 
-    /* Hero Slide Special */
+    /* Slide 1 Hero Specifics */
     .hero-container {
       display: flex;
       flex-direction: column;
@@ -285,733 +401,987 @@
       position: relative;
     }
 
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #bbf7d0;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      padding: 0.4rem 1.1rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
     .hero-title {
-      font-size: 3.4rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3.8rem;
       font-weight: 900;
-      letter-spacing: -0.03em;
+      letter-spacing: 0.05em;
       line-height: 1.1;
       margin-bottom: 1rem;
-      background: linear-gradient(135deg, #ffffff, #6ee7b7 50%, #38bdf8);
+      background: linear-gradient(135deg, #ffffff 20%, #00d4ff 60%, #8b5cf6 90%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      text-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+      text-shadow: 0 0 50px rgba(0, 212, 255, 0.5);
     }
 
     .hero-sub {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       color: #cbd5e1;
       max-width: 820px;
-      line-height: 1.5;
-      margin-bottom: 2.5rem;
+      line-height: 1.6;
+      margin-bottom: 2.2rem;
+      font-weight: 400;
     }
 
     .hero-pills {
       display: flex;
       flex-wrap: wrap;
+      gap: 0.75rem;
       justify-content: center;
-      gap: 0.8rem;
+      max-width: 900px;
     }
 
     .hero-pill {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(71, 85, 105, 0.6);
-      padding: 0.6rem 1.2rem;
+      background: rgba(15, 29, 58, 0.75);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 1.1rem;
       border-radius: 999px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
+      color: #e2e8f0;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+      transition: all 0.25s ease;
     }
 
-    /* Live Mini Simulators */
-    .sim-box {
+    .hero-pill:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* Terminal & Code blocks */
+    .terminal-box {
       background: #020617;
-      border: 1px solid #1e293b;
+      border: 1px solid rgba(56, 189, 248, 0.3);
       border-radius: 12px;
       padding: 1rem;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      color: #38bdf8;
-      overflow: hidden;
-      position: relative;
+      font-size: 0.8rem;
+      color: #a5f3fc;
+      line-height: 1.5;
+      overflow-x: auto;
     }
 
-    .thermal-slip {
-      background: #ffffff;
-      color: #0f172a;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 1.2rem;
-      border-radius: 6px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-      border-top: 4px dashed #94a3b8;
-      border-bottom: 4px dashed #94a3b8;
-      font-size: 0.75rem;
-      line-height: 1.4;
-      animation: slipOut 1.2s ease-out forwards;
-    }
-
-    @keyframes slipOut {
-      from { transform: translateY(-30px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    /* Audio Waves Animation */
-    .wave-bar {
-      display: inline-block;
-      width: 4px;
-      background: var(--accent-emerald);
-      border-radius: 99px;
-      margin: 0 2px;
-      animation: pulse 1s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0%, 100% { height: 8px; }
-      50% { height: 26px; }
-    }
-
-    /* Bottom Control Bar */
+    /* Bottom Control Dock */
     footer {
       position: relative;
       z-index: 50;
-      height: 70px;
+      height: 60px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 2rem;
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(16px);
+      background: rgba(7, 13, 26, 0.85);
+      backdrop-filter: blur(20px);
       border-top: 1px solid var(--border-color);
     }
 
     .nav-controls {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.6rem;
     }
 
     .nav-btn {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       border-radius: 10px;
-      background: rgba(30, 41, 59, 0.8);
+      background: rgba(20, 36, 68, 0.7);
       border: 1px solid var(--border-color);
-      color: white;
+      color: var(--text-white);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 1rem;
       cursor: pointer;
       transition: all 0.2s ease;
-      font-size: 1.1rem;
     }
 
     .nav-btn:hover {
-      background: var(--accent-emerald);
-      color: #020617;
+      background: rgba(0, 212, 255, 0.25);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
       transform: scale(1.05);
     }
 
     .progress-track {
       flex: 1;
-      max-width: 400px;
+      max-width: 600px;
       height: 6px;
-      background: rgba(51, 65, 85, 0.5);
-      border-radius: 99px;
-      margin: 0 1.5rem;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 999px;
+      margin: 0 2rem;
       overflow: hidden;
+      position: relative;
     }
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #10b981, #06b6d4);
-      width: 7%;
-      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 5.55%;
+      background: linear-gradient(90deg, #00d4ff, #8b5cf6);
+      border-radius: 999px;
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 10px #00d4ff;
     }
 
     .slide-counter {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      letter-spacing: 0.08em;
     }
 
-    /* Overview Mode Grid */
-    .overview-mode .slides-container {
-      display: grid !important;
-      grid-template-columns: repeat(4, 1fr) !important;
-      gap: 1.5rem !important;
-      overflow-y: auto !important;
-      transform: none !important;
-      height: 85vh !important;
-      padding: 1rem;
+    /* Overview Grid Mode */
+    body.overview-mode .viewport {
+      perspective: none;
+      overflow-y: auto;
     }
 
-    .overview-mode .slide {
-      position: relative !important;
-      opacity: 1 !important;
+    body.overview-mode .slides-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      height: auto;
+      max-width: 1500px;
+      padding: 2rem 0;
       transform: none !important;
+    }
+
+    body.overview-mode .slide {
+      position: relative;
+      height: 280px;
+      opacity: 0.85 !important;
       pointer-events: auto !important;
-      height: 240px !important;
-      padding: 1rem !important;
-      border-radius: 12px !important;
+      transform: none !important;
       cursor: pointer;
       overflow: hidden;
+      padding: 1.2rem;
     }
 
-    .overview-mode .slide:hover {
-      border-color: var(--accent-emerald);
-      transform: scale(1.03) !important;
+    body.overview-mode .slide:hover {
+      opacity: 1 !important;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 25px rgba(0, 212, 255, 0.5);
+      transform: scale(1.02) !important;
+    }
+
+    body.overview-mode .slide.active {
+      border: 2px solid var(--accent-cyan);
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+    }
+
+    body.overview-mode .slide * {
+      pointer-events: none;
+    }
+
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+      .hero-title { font-size: 2.8rem; }
+      .slide-title { font-size: 1.7rem; }
+      .slide { padding: 2rem; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Ambient Interactive Canvas -->
-  <canvas id="ambient-canvas"></canvas>
+  <!-- Background Three.js WebGL Canvas -->
+  <canvas id="webgl-bg"></canvas>
+  <div class="scanlines"></div>
 
-  <!-- Top Floating Console Bar -->
+  <!-- Header -->
   <header>
     <div class="brand">
-      <div class="brand-logo">SM</div>
-      <div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="brand-title">SmartMart Autonomous Retail</span>
-          <span class="badge-cse">CSE276 DEFENSE</span>
-        </div>
+      <div class="brand-logo">🛒</div>
+      <div class="brand-text">
+        <h1>SMARTMART 3D</h1>
+        <p>AI RETAIL STORE ASSISTANT · CSE276 DEFENSE</p>
       </div>
     </div>
 
     <div class="header-actions">
-      <button class="btn btn-secondary" id="btn-sound" title="Toggle Sci-Fi SFX">🔊 Audio: ON</button>
-      <button class="btn btn-secondary" id="btn-overview" title="Toggle 3D Grid Overview [O]">🗂️ Overview</button>
-      <button class="btn btn-secondary" id="btn-fullscreen" title="Toggle Fullscreen [F]">⛶ Fullscreen</button>
-      <a href="./SmartMart_CSE276_3D_Animated_Presentation.pptx" download="SmartMart_CSE276_3D_Animated_Presentation.pptx" class="btn btn-primary" title="Download Animated PowerPoint Presentation (.pptx)">
-        📥 Download 3D PPTX
-      </a>
-      <a href="./SmartMart_CSE276_3D_Animated_Presentation.pdf" download="SmartMart_CSE276_3D_Animated_Presentation.pdf" target="_blank" class="btn btn-secondary" style="border-color: #f59e0b; color: #fbbf24;" title="Download High-Resolution PDF Presentation (.pdf)">
-        📄 Download PDF
-      </a>
-      <a href="../#/" class="btn btn-secondary" target="_blank">
-        🏬 Live Storefront ↗
-      </a>
+      <button class="action-btn" id="btn-sound" title="Toggle audio sound FX [M]">🔊 Audio: ON</button>
+      <button class="action-btn" id="btn-overview" title="Toggle 18-slide overview grid [O]">🗂️ Overview</button>
+      <button class="action-btn" id="btn-fullscreen" title="Toggle fullscreen presentation [F]">⛶ Fullscreen</button>
+      <a href="./index.html" class="action-btn primary" title="Launch live SmartMart React web application">🚀 Launch App</a>
     </div>
   </header>
 
-  <!-- 3D Slide Stage -->
+  <!-- 3D Slide Presentation Viewport -->
   <main class="viewport">
     <div class="slides-container" id="slides-container">
 
-      <!-- SLIDE 1: HERO TITLE -->
-      <section class="slide active" data-slide="1">
+      <!-- SLIDE 1: CINEMATIC INTRODUCTION -->
+      <section class="slide active" data-slide="1" data-transition="cube">
         <div class="hero-container">
-          <div class="slide-badge">● CSE276 CAPSTONE DEFENSE PRESENTATION</div>
-          <h1 class="hero-title">SMARTMART: AUTONOMOUS RETAIL ASSISTANT</h1>
+          <div class="hero-badge">● CSE276 CAPSTONE DEFENSE · IMMERSIVE 3D SHOWCASE</div>
+          <h1 class="hero-title">SMARTMART</h1>
+          <p style="font-family: 'Orbitron'; font-size: 1.4rem; color: #38bdf8; margin-bottom: 0.8rem; letter-spacing: 0.1em;">
+            AI RETAIL STORE ASSISTANT
+          </p>
           <p class="hero-sub">
-            Next-Generation In-Store Route Optimization, Multi-Agent Collaboration, and Grounded RAG Policy Intelligence with 3D Skeuomorphic Experience
+            A dual-dimension intelligent retail ecosystem unifying classical discrete graph optimization (Dijkstra/TSP) with modern generative foundation models, grounded policy RAG, and collaborative multi-agent dialog.
           </p>
           <div class="hero-pills">
-            <div class="hero-pill">⚡ Groq Qwen-27B Neural Engine</div>
-            <div class="hero-pill">🗺️ Dijkstra & TSP Graph Optimization</div>
-            <div class="hero-pill">🤖 Collaborative Multi-Agent Consensus</div>
-            <div class="hero-pill">🛒 SmartCart IoT Tare Load-Cell Scale</div>
-            <div class="hero-pill">🔐 Protected Admin OS (PIN: CSE276)</div>
+            <div class="hero-pill">🗺️ Dijkstra & TSP Shortest Path</div>
+            <div class="hero-pill">📚 Policy RAG with TF-IDF Grounding</div>
+            <div class="hero-pill">🤖 Collaborative Multi-Agent System</div>
+            <div class="hero-pill">⚡ 4-Paradigm Benchmark Engine</div>
+            <div class="hero-pill">🔐 Protected Admin Management (CSE276)</div>
+            <div class="hero-pill">🛒 Interactive 3-Tier Gondola Aisles</div>
           </div>
-          <div style="margin-top: 2.5rem; font-size: 0.85rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">
-            Use [◀ Arrow Left] and [▶ Arrow Right] or [Spacebar] to navigate • Press [O] for Overview
+          <div style="margin-top: 2.2rem; font-size: 0.85rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">
+            Use [◀ Left] [▶ Right] [Spacebar] or Mouse Wheel to navigate · Press [O] for Overview
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 2: PROBLEM VS SOLUTION -->
-      <section class="slide" data-slide="2">
-        <div class="slide-badge">● 02 / EXECUTIVE MOTIVATION</div>
-        <h2 class="slide-title">Retail Pain Points vs. SmartMart Solution</h2>
+      <!-- SLIDE 2: PROJECT OVERVIEW -->
+      <section class="slide" data-slide="2" data-transition="book">
+        <div class="slide-badge">02 / EXECUTIVE SUMMARY</div>
+        <h2 class="slide-title">What is SmartMart & What Problem Does It Solve?</h2>
+        <div class="slide-content">
+          <div class="grid-3" style="margin-bottom: 1.5rem;">
+            <div class="tilt-card">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛍️</div>
+              <h3 style="color: #38bdf8; font-size: 1.15rem; margin-bottom: 0.4rem;">Customer Dimension</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+                Public smart shopper portal: browse live catalog, compute optimized physical walking route, query policy Q&A bot, and receive generative dietary bundles.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">👨‍💼</div>
+              <h3 style="color: #f59e0b; font-size: 1.15rem; margin-bottom: 0.4rem;">Admin Dimension</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+                Protected manager console (PIN: <code>CSE276</code>): real-time inventory CRUD, restock alert monitors, total valuation, and live aisle shelf allocations.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🧠</div>
+              <h3 style="color: #a855f7; font-size: 1.15rem; margin-bottom: 0.4rem;">AI Reasoning Engine</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+                Hybrid architecture executing Claude 3.5 Sonnet & Groq Qwen-27B alongside local graph theory solvers for sub-500ms guaranteed answers.
+              </p>
+            </div>
+          </div>
+          <div class="grid-4">
+            <div class="tilt-card" style="text-align: center; padding: 1rem;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #00d4ff;">21+</div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Store Products</div>
+            </div>
+            <div class="tilt-card" style="text-align: center; padding: 1rem;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #10b981;">8</div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Physical Aisles</div>
+            </div>
+            <div class="tilt-card" style="text-align: center; padding: 1rem;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #f59e0b;">4</div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">AI Paradigms</div>
+            </div>
+            <div class="tilt-card" style="text-align: center; padding: 1rem;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #a855f7;">0%</div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Policy Hallucination</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: PROBLEM STATEMENT -->
+      <section class="slide" data-slide="3" data-transition="vflip">
+        <div class="slide-badge">03 / PROBLEM STATEMENT</div>
+        <h2 class="slide-title">Physical Retail Friction vs. SmartMart Transformation</h2>
         <div class="slide-content">
           <div class="grid-2">
             <div class="tilt-card" style="border-left: 4px solid #ef4444;">
-              <h3 style="color: #f87171; margin-bottom: 0.8rem; font-size: 1.25rem;">❌ The Physical Retail Friction</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 1rem; color: #cbd5e1; font-size: 0.95rem;">
-                <li><strong style="color: white;">Aisle Navigation Disorientation:</strong> Customers spend 40% of their total shopping duration retracing steps across aisles.</li>
-                <li><strong style="color: white;">Policy Inconsistencies:</strong> Floor staff frequently misquote refund deadlines (e.g. 14 vs 30 days) and electronics warranty coverage.</li>
-                <li><strong style="color: white;">Unassisted Shopping Carts:</strong> Traditional trolleys offer no dietary cross-checks, budget calculations, or real-time weight verification.</li>
-                <li><strong style="color: white;">Information Silos:</strong> Frontline customer inquiries are decoupled from back-office stock balances and aisle allocation.</li>
+              <h3 style="color: #f87171; font-size: 1.2rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>❌</span> Traditional Retail Inefficiencies
+              </h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.9rem; color: #cbd5e1;">
+                <li><strong style="color: #fca5a5;">Aisle Disorientation:</strong> Shoppers waste 40% of their total store time retracing paths across distant aisles.</li>
+                <li><strong style="color: #fca5a5;">Policy Misinformation:</strong> Clerks misquote return policies (e.g. 14 vs 30 days) or perishables rules, causing disputes.</li>
+                <li><strong style="color: #fca5a5;">Disconnected Stock:</strong> Customer inquiries at customer service cannot verify live shelf aisle placement in real time.</li>
+                <li><strong style="color: #fca5a5;">Generic Offers:</strong> Store discounts lack personalized dietary, allergy, or budget context.</li>
               </ul>
             </div>
             <div class="tilt-card" style="border-left: 4px solid #10b981;">
-              <h3 style="color: #34d399; margin-bottom: 0.8rem; font-size: 1.25rem;">✅ The SmartMart Autonomous Answer</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 1rem; color: #cbd5e1; font-size: 0.95rem;">
-                <li><strong style="color: white;">Dijkstra + TSP Pathfinding:</strong> Mathematically optimizes multi-item shopping sequences, cutting walking distance by 42.6%.</li>
-                <li><strong style="color: white;">Grounded Policy RAG:</strong> Vector TF-IDF retrieval answers complex policy questions with physical thermal receipt slip printouts.</li>
-                <li><strong style="color: white;">SmartCart Dash Cart:</strong> Real-time budget monitoring, tare scale calibration, and generative personalized dietary bundles.</li>
-                <li><strong style="color: white;">Collaborative Multi-Agent System:</strong> Two-way staff walkie-talkie & CCTV verification ensures 100% factual accuracy before checkout.</li>
+              <h3 style="color: #34d399; font-size: 1.2rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>✅</span> SmartMart Autonomous Solutions
+              </h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.9rem; color: #cbd5e1;">
+                <li><strong style="color: #86efac;">Dijkstra + TSP Pathfinding:</strong> Mathematically orders shopping items into the shortest continuous route, reducing walking by 42%.</li>
+                <li><strong style="color: #86efac;">Policy RAG System:</strong> Instant answers grounded in official store policies with cited source sections and thermal receipt proof.</li>
+                <li><strong style="color: #86efac;">Unified Database:</strong> Real-time SQLite catalog guarantees zero inventory discrepancy between shelf and screen.</li>
+                <li><strong style="color: #86efac;">Personalized Bundling:</strong> AI synthesizes tailored item bundles respecting vegetarian, vegan, and budget constraints.</li>
               </ul>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 3: SYSTEM ARCHITECTURE -->
-      <section class="slide" data-slide="3">
-        <div class="slide-badge">● 03 / SYSTEM ARCHITECTURE</div>
-        <h2 class="slide-title">Dual-Dimension Framework & Hybrid Cloud Engine</h2>
-        <div class="slide-content">
-          <div class="grid-3">
-            <div class="tilt-card">
-              <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🛍️</div>
-              <h3 style="color: #38bdf8; margin-bottom: 0.5rem;">1. Customer Dimension</h3>
-              <p style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 1rem;">Public touchpoint experiences</p>
-              <ul style="list-style: none; font-size: 0.88rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.5rem;">
-                <li>▹ Interactive 2D/3D Store Blueprint</li>
-                <li>▹ Physical Gondola 3-Tier Shelves</li>
-                <li>▹ Touch Kiosk Policy Q&A Terminal</li>
-                <li>▹ SmartCart Dash Recommendations</li>
-                <li>▹ Staff Walkie-Talkie Multi-Agent</li>
-              </ul>
-            </div>
-            <div class="tilt-card" style="border-color: rgba(16, 185, 129, 0.5);">
-              <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🧠</div>
-              <h3 style="color: #34d399; margin-bottom: 0.5rem;">2. Core AI & Algo Engine</h3>
-              <p style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 1rem;">Sub-500ms real-time reasoning</p>
-              <ul style="list-style: none; font-size: 0.88rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.5rem;">
-                <li>⚡ Groq Cloud (Qwen-27B Sub-400ms)</li>
-                <li>⚡ Dijkstra Shortest Path Solver</li>
-                <li>⚡ TSP Nearest-Neighbor Heuristics</li>
-                <li>⚡ TF-IDF Vectorized Policy RAG</li>
-                <li>⚡ In-Browser Client Neural Fallback</li>
-              </ul>
-            </div>
-            <div class="tilt-card" style="border-color: rgba(245, 158, 11, 0.5);">
-              <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🔐</div>
-              <h3 style="color: #fbbf24; margin-bottom: 0.5rem;">3. Admin Dimension</h3>
-              <p style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 1rem;">Protected manager OS (PIN: CSE276)</p>
-              <ul style="list-style: none; font-size: 0.88rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.5rem;">
-                <li>🔒 NCR/Diebold Nixdorf POS Console</li>
-                <li>🔒 Full Catalog CRUD Management</li>
-                <li>🔒 Aisle Tier Dynamic Relocation</li>
-                <li>🔒 Real-Time Stock Valuation ($3.2K+)</li>
-                <li>🔒 Policy Handbook RAG Sync</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 4: GRAPH ALGORITHMS (DIJKSTRA + TSP) -->
-      <section class="slide" data-slide="4">
-        <div class="slide-badge">● 04 / GRAPH THEORY & OPTIMIZATION</div>
-        <h2 class="slide-title">Dijkstra Shortest Path & TSP Nearest-Neighbor Heuristic</h2>
-        <div class="slide-content">
-          <div class="grid-2">
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Dijkstra Shortest Path Formulation</h3>
-              <p style="color: #cbd5e1; font-size: 0.88rem; margin-bottom: 1rem;">
-                The store layout is modeled as a weighted undirected graph $G = (V, E, W)$, with vertices representing key architectural junctions:
-              </p>
-              <div class="sim-box" style="margin-bottom: 1rem;">
-                V = { Entrance, A1 (Bakery), B1 (Pantry), C1 (Organic), D1 (Electronics), Exit }<br>
-                Priority Queue Q: Extract-Min(Q)<br>
-                Relaxation: if d[u] + w(u,v) < d[v] => d[v] = d[u] + w(u,v)
-              </div>
-              <p style="color: #94a3b8; font-size: 0.85rem;">
-                Guarantees the globally shortest physical distance between any two aisle waypoints in $O((|V| + |E|) \log |V|)$ time.
-              </p>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #34d399; margin-bottom: 0.8rem;">Travelling Salesperson (TSP) Shopping Tour</h3>
-              <p style="color: #cbd5e1; font-size: 0.88rem; margin-bottom: 1rem;">
-                When a customer selects multiple basket items, visiting them randomly causes severe backtracking. SmartMart executes a greedy nearest-neighbor TSP tour:
-              </p>
-              <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                <div style="font-weight: 700; color: #fbbf24; margin-bottom: 0.5rem;">Optimized Tour Sequence:</div>
-                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">
-                  <span>ENTRANCE</span> ➔ <span style="color: #10b981;">A1</span> ➔ <span style="color: #06b6d4;">B1</span> ➔ <span style="color: #a855f7;">C1</span> ➔ <span>CHECKOUT</span>
-                </div>
-              </div>
-              <p style="color: #10b981; font-weight: 600; font-size: 0.9rem;">
-                ✦ Empirical Result: 42.6% reduction in customer footstep transit time across 500 simulated baskets.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 5: GONDOLA SHELF SKEUOMORPHISM -->
-      <section class="slide" data-slide="5">
-        <div class="slide-badge">● 05 / PHYSICAL MERCHANDISING</div>
-        <h2 class="slide-title">Physical 3-Tier Gondola Shelves & E-Ink Labeling</h2>
-        <div class="slide-content">
-          <div class="grid-2">
-            <div class="tilt-card" style="display: flex; flex-direction: column; gap: 0.8rem;">
-              <div style="background: rgba(51, 65, 85, 0.4); border-left: 4px solid #38bdf8; padding: 0.8rem; border-radius: 6px;">
-                <div style="color: #38bdf8; font-weight: 700; font-size: 0.95rem;">TOP SHELF (Eye-Line +24"): Premium Reserve</div>
-                <div style="font-size: 0.82rem; color: #cbd5e1;">Artisan sourdough, imported extra virgin olive oil, aged Parmigiano Reggiano. High-margin specialty goods.</div>
-              </div>
-              <div style="background: rgba(16, 185, 129, 0.15); border-left: 4px solid #10b981; padding: 0.8rem; border-radius: 6px;">
-                <div style="color: #34d399; font-weight: 700; font-size: 0.95rem;">EYE-LEVEL SHELF (48"-60"): Bestsellers & Fast-Movers</div>
-                <div style="font-size: 0.82rem; color: #cbd5e1;">Organic almond milk, Greek yogurt, whole grain pasta. Prime retail visibility; 65% of customer selections happen here.</div>
-              </div>
-              <div style="background: rgba(245, 158, 11, 0.15); border-left: 4px solid #f59e0b; padding: 0.8rem; border-radius: 6px;">
-                <div style="color: #fbbf24; font-weight: 700; font-size: 0.95rem;">BOTTOM SHELF (0"-24"): Bulk Items & Heavy Value</div>
-                <div style="font-size: 0.82rem; color: #cbd5e1;">5kg flour sacks, value pack basmati rice, gallon spring water. Low center-of-gravity shelf safety.</div>
-              </div>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Hardware IoT Skeuomorphism</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem; color: #cbd5e1;">
-                <li><strong style="color: white;">E-Ink Price Talkers:</strong> Electronic shelf tags with monochrome e-paper font updating dynamically on price adjustments.</li>
-                <li><strong style="color: white;">Real Barcode Strips:</strong> Every shelf rail includes high-density barcode graphics mimicking physical warehouse scanning.</li>
-                <li><strong style="color: white;">LED Stock Status Bulbs:</strong> Tri-color LED indicators: <span style="color: #10b981;">● Green (Stock > 15)</span>, <span style="color: #f59e0b;">● Amber (Low Stock 1-14)</span>, <span style="color: #ef4444;">● Red (Depleted)</span>.</li>
-                <li><strong style="color: white;">Dietary Filters:</strong> Instant sub-millisecond filtering for Vegan, Gluten-Free, Organic, and Keto items.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 6: POLICY CHAT & THERMAL RECEIPT SLIP -->
-      <section class="slide" data-slide="6">
-        <div class="slide-badge">● 06 / GROUNDED RAG INTELLIGENCE</div>
-        <h2 class="slide-title">Kiosk Policy Q&A & Animated Thermal Receipt Slip</h2>
-        <div class="slide-content">
-          <div class="grid-2">
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Retrieval Augmented Generation (RAG) Flow</h3>
-              <ol style="color: #cbd5e1; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.8rem; padding-left: 1.2rem;">
-                <li><strong>Policy Vector Ingestion:</strong> Ingestion of the official store policy manual (returns, price matches, electronics warranty, loyalty perks).</li>
-                <li><strong>TF-IDF Semantic Matching:</strong> Customer query is scored against policy vector embeddings to retrieve top-k governing clauses.</li>
-                <li><strong>Anti-Hallucination Guardrails:</strong> Model prompt strictly forbids guessing; if a scenario is outside policy, it directs to Store Manager.</li>
-                <li><strong>Fast Groq Synthesis:</strong> Generates conversational, customer-friendly answers in ~410ms.</li>
-              </ol>
-            </div>
-            <div class="tilt-card" style="display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.9);">
-              <!-- Simulated Thermal Receipt Slip -->
-              <div class="thermal-slip" style="width: 280px;">
-                <div style="text-align: center; font-weight: 800; border-bottom: 1px dashed #64748b; padding-bottom: 6px; margin-bottom: 8px;">
-                  SMARTMART POLICY SLIP<br>
-                  <span style="font-size: 0.65rem; font-weight: 500;">KIOSK #04 • TRAN #9942</span>
-                </div>
-                <div><strong>TOPIC:</strong> ELECTRONICS WARRANTY</div>
-                <div><strong>WINDOW:</strong> 30 DAYS WITH RECEIPT</div>
-                <div><strong>CONDITION:</strong> ORIGINAL PACKAGING</div>
-                <div style="margin: 8px 0; font-size: 0.68rem; color: #475569; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
-                  "Items eligible for 1-to-1 replacement or full refund to original payment method."
-                </div>
-                <div style="text-align: center; margin-top: 6px; font-weight: 700; font-size: 0.65rem; letter-spacing: 2px;">
-                  ||| | ||||| || |||| |||
-                </div>
-                <div style="text-align: center; font-size: 0.6rem; color: #94a3b8;">MANAGER CODE: CSE276</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 7: SMARTCART DASH CART -->
-      <section class="slide" data-slide="7">
-        <div class="slide-badge">● 07 / IN-CART IOT EXPERIENCE</div>
-        <h2 class="slide-title">SmartCart Dash: Personalized Generative Recommendations</h2>
-        <div class="slide-content">
-          <div class="grid-2">
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">IoT Handlebar Tablet Experience</h3>
-              <p style="color: #cbd5e1; font-size: 0.88rem; margin-bottom: 1rem;">
-                Mounted directly on smart shopping cart handlebars with an integrated digital capacitive touchscreen:
-              </p>
-              <div class="sim-box" style="margin-bottom: 1rem; color: #34d399;">
-                ⚖️ TARE LOAD-CELL SENSOR: ACTIVE<br>
-                CURRENT BASKET WEIGHT: 3.42 kg (Tare Calibrated)<br>
-                BUDGET TARGET: $25.00 | RUNNING TOTAL: $19.47
-              </div>
-              <ul style="list-style: none; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.5rem;">
-                <li>▹ Live scale weight detection prevents checkout inventory mismatch.</li>
-                <li>▹ Real-time budget progress bar alerts shoppers before exceeding limits.</li>
-              </ul>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #34d399; margin-bottom: 0.8rem;">Grounded Generative AI Bundles</h3>
-              <p style="color: #cbd5e1; font-size: 0.88rem; margin-bottom: 1rem;">
-                Customers prompt in natural language: <em>"Quick high-protein vegan meal under $20"</em>:
-              </p>
-              <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem;">
-                <div style="background: rgba(15, 23, 42, 0.7); padding: 0.6rem; border-radius: 6px; border-left: 3px solid #10b981;">
-                  <strong style="color: white;">Organic Firm Tofu:</strong> $3.49 • <span style="color: #38bdf8;">Aisle 3, Bay B, Eye-Level</span>
-                </div>
-                <div style="background: rgba(15, 23, 42, 0.7); padding: 0.6rem; border-radius: 6px; border-left: 3px solid #10b981;">
-                  <strong style="color: white;">Quinoa Grain Bowl:</strong> $4.99 • <span style="color: #38bdf8;">Aisle 2, Bay A, Eye-Level</span>
-                </div>
-                <div style="background: rgba(15, 23, 42, 0.7); padding: 0.6rem; border-radius: 6px; border-left: 3px solid #10b981;">
-                  <strong style="color: white;">Organic Edamame:</strong> $2.99 • <span style="color: #38bdf8;">Aisle 3, Bay C, Top Shelf</span>
-                </div>
-              </div>
-              <p style="color: #34d399; font-weight: 600; font-size: 0.85rem; margin-top: 0.8rem;">
-                ✦ 1-Click "Add to Dash Cart" automatically updates the Dijkstra in-store walking path!
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 8: MULTI-AGENT WALKIE-TALKIE & CCTV -->
-      <section class="slide" data-slide="8">
-        <div class="slide-badge">● 08 / MULTI-AGENT COLLABORATION</div>
-        <h2 class="slide-title">Multi-Agent System: Staff Walkie-Talkie & Live CCTV</h2>
-        <div class="slide-content">
-          <div class="grid-3">
-            <div class="tilt-card" style="border-color: rgba(56, 189, 248, 0.5);">
-              <div style="font-size: 1.5rem; margin-bottom: 0.4rem;">🎙️</div>
-              <h3 style="color: #38bdf8; font-size: 1.1rem; margin-bottom: 0.4rem;">Agent 1: Concierge</h3>
-              <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.8rem;">Customer-Facing Dialogue</p>
-              <p style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">
-                Parses colloquial customer requests, maintains friendly empathy, and dispatches structured telemetry requests over internal channels.
-              </p>
-              <div style="margin-top: 1rem; display: flex; align-items: center;">
-                <span class="wave-bar" style="animation-delay: 0.1s;"></span>
-                <span class="wave-bar" style="animation-delay: 0.3s;"></span>
-                <span class="wave-bar" style="animation-delay: 0.2s;"></span>
-                <span class="wave-bar" style="animation-delay: 0.4s;"></span>
-                <span class="wave-bar" style="animation-delay: 0.15s;"></span>
-                <span style="font-size: 0.72rem; color: #34d399; margin-left: 6px;">TRANSMITTING</span>
-              </div>
-            </div>
-
-            <div class="tilt-card" style="border-color: rgba(16, 185, 129, 0.5);">
-              <div style="font-size: 1.5rem; margin-bottom: 0.4rem;">📦</div>
-              <h3 style="color: #34d399; font-size: 1.1rem; margin-bottom: 0.4rem;">Agent 2: Specialist</h3>
-              <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.8rem;">Floor Logistics & Stock</p>
-              <p style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">
-                Queries SQLite database for live shelf inventory, confirms exact aisle bay coordinates, verifies expiration dates, and reports back ground-truth facts.
-              </p>
-              <div style="margin-top: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #38bdf8;">
-                SELECT stock, aisle FROM products WHERE id=4... [CONFIRMED 24 UNITS]
-              </div>
-            </div>
-
-            <div class="tilt-card" style="border-color: rgba(245, 158, 11, 0.5);">
-              <div style="font-size: 1.5rem; margin-bottom: 0.4rem;">📹</div>
-              <h3 style="color: #fbbf24; font-size: 1.1rem; margin-bottom: 0.4rem;">CCTV Cam 04 Feed</h3>
-              <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.8rem;">Physical Store Telemetry</p>
-              <div style="background: #020617; border: 1px solid #334155; border-radius: 6px; padding: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #f59e0b;">
-                ● LIVE REC [CAM-04: AISLE 2]<br>
-                SCANLINES: ACTIVE<br>
-                OBJECT DETECTION: TROLLEY #12<br>
-                STATUS: MULTI-AGENT SYNC OK
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 9: 4-PARADIGM BENCHMARK -->
-      <section class="slide" data-slide="9">
-        <div class="slide-badge">● 09 / CSE276 RESEARCH BENCHMARK</div>
-        <h2 class="slide-title">AI Paradigm Benchmark: 4 Architectures Evaluated</h2>
-        <div class="slide-content">
-          <div class="grid-4" style="margin-bottom: 1.2rem;">
-            <div class="tilt-card" style="border-top: 4px solid #10b981;">
-              <h4 style="color: #34d399; font-size: 0.95rem;">1. Rule-Based</h4>
-              <div style="font-size: 1.4rem; font-weight: 800; color: white; margin: 0.4rem 0;">12 ms</div>
-              <div style="font-size: 0.75rem; color: #94a3b8;">Hallucination: <strong style="color: #10b981;">0.0%</strong></div>
-              <p style="font-size: 0.78rem; color: #cbd5e1; margin-top: 0.5rem;">Regex & keyword lookup. Ultra-fast, but fails completely on paraphrased queries.</p>
-            </div>
-            <div class="tilt-card" style="border-top: 4px solid #f43f5e;">
-              <h4 style="color: #f87171; font-size: 0.95rem;">2. Zero-Shot LLM</h4>
-              <div style="font-size: 1.4rem; font-weight: 800; color: white; margin: 0.4rem 0;">380 ms</div>
-              <div style="font-size: 0.75rem; color: #94a3b8;">Hallucination: <strong style="color: #f87171;">38.5%</strong></div>
-              <p style="font-size: 0.78rem; color: #cbd5e1; margin-top: 0.5rem;">Direct query without store context. Frequently invents unstocked brands and false return terms.</p>
-            </div>
-            <div class="tilt-card" style="border-top: 4px solid #06b6d4;">
-              <h4 style="color: #38bdf8; font-size: 0.95rem;">3. RAG Pipeline</h4>
-              <div style="font-size: 1.4rem; font-weight: 800; color: white; margin: 0.4rem 0;">420 ms</div>
-              <div style="font-size: 0.75rem; color: #94a3b8;">Hallucination: <strong style="color: #38bdf8;">1.2%</strong></div>
-              <p style="font-size: 0.78rem; color: #cbd5e1; margin-top: 0.5rem;">Vector retriever injects verified store context. High factual grounding with minimal latency penalty.</p>
-            </div>
-            <div class="tilt-card" style="border-top: 4px solid #a855f7;">
-              <h4 style="color: #c084fc; font-size: 0.95rem;">4. Multi-Agent</h4>
-              <div style="font-size: 1.4rem; font-weight: 800; color: white; margin: 0.4rem 0;">790 ms</div>
-              <div style="font-size: 0.75rem; color: #94a3b8;">Hallucination: <strong style="color: #c084fc;">0.4%</strong></div>
-              <p style="font-size: 0.78rem; color: #cbd5e1; margin-top: 0.5rem;">Two autonomous agents cross-audit inventory and policies before final synthesis. Gold-standard accuracy.</p>
-            </div>
-          </div>
-          <div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(16, 185, 129, 0.5); padding: 0.9rem 1.4rem; border-radius: 12px; font-size: 0.88rem; color: #cbd5e1; text-align: center;">
-            🏆 <strong style="color: white;">CSE276 Research Conclusion:</strong> RAG represents the optimal cost/speed ratio for public kiosk bots, while Multi-Agent consensus is essential for mission-critical logistics and inventory fulfillment.
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 10: ADMIN DIMENSION (PIN: CSE276) -->
-      <section class="slide" data-slide="10">
-        <div class="slide-badge">● 10 / STORE OPERATIONS</div>
-        <h2 class="slide-title">Protected Store Manager Terminal (PIN: CSE276)</h2>
-        <div class="slide-content">
-          <div class="grid-2">
-            <div class="tilt-card">
-              <h3 style="color: #fbbf24; margin-bottom: 0.8rem;">NCR / Diebold POS Terminal</h3>
-              <p style="color: #cbd5e1; font-size: 0.88rem; margin-bottom: 1rem;">
-                Protected manager console styled after real-world NCR/Diebold Nixdorf point-of-sale hardware:
-              </p>
-              <div class="sim-box" style="margin-bottom: 1rem; color: #fbbf24;">
-                [CHIP-READER]: SMART CARD DETECTED<br>
-                ENTER STORE MANAGER PASSCODE: [ * * * * * * ]<br>
-                SECURITY PIN: CSE276 (VERIFIED)
-              </div>
-              <p style="color: #94a3b8; font-size: 0.85rem;">
-                Implements strict Role-Based Access Control (RBAC), completely isolating the manager backend from casual shoppers.
-              </p>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Store Operations Telemetry</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem; color: #cbd5e1;">
-                <li><strong style="color: white;">Full Catalog CRUD:</strong> Add new SKUs, update barcodes, prices, and stock allocations in real time.</li>
-                <li><strong style="color: white;">Live Inventory Valuation:</strong> Real-time sum calculation of active retail assets ($3,280.45 across 24 product lines).</li>
-                <li><strong style="color: white;">Dynamic Shelf Reassignment:</strong> Re-tier products between Top, Eye-Level, and Bottom shelves with instant frontend re-render.</li>
-                <li><strong style="color: white;">Policy Knowledge Base Sync:</strong> Modify return rules, automatically updating the RAG TF-IDF search corpus.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 11: TECHNICAL STACK -->
-      <section class="slide" data-slide="11">
-        <div class="slide-badge">● 11 / ENGINEERING SPECIFICATIONS</div>
-        <h2 class="slide-title">Full-Stack Modern Technology Architecture</h2>
-        <div class="slide-content">
-          <div class="grid-3">
-            <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Frontend Web OS</h3>
-              <ul style="list-style: none; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.6rem;">
-                <li>⚛️ React 18 Single Page App</li>
-                <li>⚡ Vite Ultra-Fast Build Tooling</li>
-                <li>🎨 Tailwind CSS v4 Hardware Design</li>
-                <li>📐 Interactive SVG Store Layouts</li>
-                <li>🧭 React Router DOM HashRouter</li>
-                <li>🌐 100% Client-Side Groq Fallback</li>
-              </ul>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #34d399; margin-bottom: 0.8rem;">Backend Microservice</h3>
-              <ul style="list-style: none; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.6rem;">
-                <li>🐍 Python 3.13 Architecture</li>
-                <li>🚀 FastAPI Asynchronous Server</li>
-                <li>🦄 Uvicorn High-Performance ASGI</li>
-                <li>🗄️ SQLAlchemy ORM + SQLite</li>
-                <li>🛡️ Pydantic v2 Type Enforcement</li>
-                <li>📖 Swagger Interactive OpenAPI Docs</li>
-              </ul>
-            </div>
-            <div class="tilt-card">
-              <h3 style="color: #c084fc; margin-bottom: 0.8rem;">AI & Algorithms</h3>
-              <ul style="list-style: none; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.6rem;">
-                <li>⚡ Groq Cloud (qwen/qwen3.8-27b)</li>
-                <li>⏱️ Sub-500ms Token Generation</li>
-                <li>🔍 Scikit-Learn TF-IDF Policy Engine</li>
-                <li>🗺️ NetworkX Graph Theory Engine</li>
-                <li>🤖 Multi-Agent 3-Turn Dialogue</li>
-                <li>📊 Automated Judge Evaluation</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SLIDE 12: EMPIRICAL BENCHMARKS -->
-      <section class="slide" data-slide="12">
-        <div class="slide-badge">● 12 / EMPIRICAL EVALUATION</div>
-        <h2 class="slide-title">Key Performance Indicators & Statistical Results</h2>
+      <!-- SLIDE 4: MOTIVATION -->
+      <section class="slide" data-slide="4" data-transition="zoom">
+        <div class="slide-badge">04 / MOTIVATION</div>
+        <h2 class="slide-title">Why AI & Graph Theory Revolutionize Retail Operations</h2>
         <div class="slide-content">
           <div class="grid-3" style="margin-bottom: 1.5rem;">
-            <div class="tilt-card" style="text-align: center;">
-              <div style="font-size: 2.8rem; font-weight: 800; color: #10b981;">42.6%</div>
-              <div style="font-weight: 700; color: white; margin-bottom: 0.3rem;">Walking Distance Cut</div>
-              <p style="font-size: 0.78rem; color: #94a3b8;">Dijkstra + TSP optimization versus unassisted shoppers</p>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">📈</div>
+              <h3 style="color: #38bdf8; font-size: 1.1rem; margin-bottom: 0.4rem;">Market Scale</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8;">
+                Global Retail AI market is expanding from <strong>$7.3B</strong> to over <strong>$31.1B by 2028</strong> (CAGR 33.6%). Autonomous store navigation is the #1 consumer-requested feature.
+              </p>
             </div>
-            <div class="tilt-card" style="text-align: center;">
-              <div style="font-size: 2.8rem; font-weight: 800; color: #06b6d4;">99.2%</div>
-              <div style="font-weight: 700; color: white; margin-bottom: 0.3rem;">Policy RAG Precision</div>
-              <p style="font-size: 0.78rem; color: #94a3b8;">Zero hallucinations across 100 test policy scenarios</p>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">⏱️</div>
+              <h3 style="color: #10b981; font-size: 1.1rem; margin-bottom: 0.4rem;">Shopper Time Savings</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8;">
+                Optimized route sequencing removes average <strong>8.4 minutes</strong> per shopping run, eliminating aisle traffic bottlenecks and cart congestion.
+              </p>
             </div>
-            <div class="tilt-card" style="text-align: center;">
-              <div style="font-size: 2.8rem; font-weight: 800; color: #f59e0b;">418 ms</div>
-              <div style="font-weight: 700; color: white; margin-bottom: 0.3rem;">Mean LLM Response Time</div>
-              <p style="font-size: 0.78rem; color: #94a3b8;">Sub-second execution via Groq Qwen-27B engine</p>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">🎯</div>
+              <h3 style="color: #a855f7; font-size: 1.1rem; margin-bottom: 0.4rem;">Hallucination Guardrails</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8;">
+                Un-grounded LLMs fabricate retail policies 28% of the time. Retrieval-Augmented Generation (RAG) enforces <strong>strict factual adherence</strong>.
+              </p>
             </div>
           </div>
-          <div class="tilt-card">
-            <h4 style="color: #38bdf8; margin-bottom: 0.6rem; font-size: 0.95rem;">System Resilience & Uptime:</h4>
-            <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">
-              Dual-mode routing allows the platform to function with zero external backend dependencies when hosted on static environments like <strong>GitHub Pages</strong>, falling back gracefully to client-side API calls while preserving 100% of the live AI reasoning and interactive store graphics.
+          <div class="tilt-card" style="border-left: 4px solid var(--accent-cyan); background: rgba(6, 182, 212, 0.08);">
+            <p style="font-size: 0.95rem; font-style: italic; color: #e2e8f0; line-height: 1.6;">
+              "The physical retail supermarket remains irreplaceable for sensory evaluation and immediacy. SmartMart does not replace the store — it equips both shopper and store manager with aerospace-grade navigation and neural intelligence."
             </p>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 13: LIVE DEMONSTRATION CHECKLIST -->
-      <section class="slide" data-slide="13">
-        <div class="slide-badge">● 13 / DEFENSE WALKTHROUGH</div>
-        <h2 class="slide-title">Interactive Defense Demonstration Checklist</h2>
+      <!-- SLIDE 5: PROJECT OBJECTIVES -->
+      <section class="slide" data-slide="5" data-transition="panel">
+        <div class="slide-badge">05 / PROJECT OBJECTIVES</div>
+        <h2 class="slide-title">Core Engineering Milestones & Deliverables</h2>
         <div class="slide-content">
-          <div class="tilt-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-around;">
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-              <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 800; padding: 4px 10px; border-radius: 6px;">STEP 1</span>
-              <div>
-                <strong style="color: white;">Role Authentication:</strong> Demonstrate instant 1-click Customer Login vs Secure POS PIN Entry (<code style="color: #fbbf24;">CSE276</code>).
+          <div class="grid-3">
+            <div class="tilt-card">
+              <div style="color: #00d4ff; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">01</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">Graph Route Optimizer</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Model supermarket floorplan as an adjacency graph (A1-D1, ENTRANCE, EXIT) and compute exact shortest path with Dijkstra & TSP heuristic.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="color: #10b981; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">02</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">Zero-Hallucination RAG</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Index store policy documents with TF-IDF vector ranking to ground Claude 3.5 Sonnet responses with verifiable source citations.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="color: #a855f7; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">03</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">Multi-Agent Pipeline</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Orchestrate 3-turn collaborative dialogue between Customer Agent (intent analysis) and Store Agent (real DB fact checking).
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="color: #f59e0b; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">04</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">4-Paradigm Benchmark</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Simultaneously execute Rule-Based, Zero-Shot, RAG, and Multi-Agent pipelines against identical prompts, logging latency & token costs.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="color: #38bdf8; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">05</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">Dual-Role Architecture</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Provide public customer navigation alongside a password-protected admin dashboard with live inventory CRUD and shelf allocation.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="color: #f43f5e; font-family: 'Orbitron'; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.4rem;">06</div>
+              <h3 style="font-size: 1.05rem; margin-bottom: 0.3rem;">Edge Resilient Hosting</h3>
+              <p style="font-size: 0.82rem; color: #94a3b8;">
+                Deliver full client-side mock fallback with direct Groq API execution to ensure zero downtime when backend server is offline.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: PROPOSED SOLUTION -->
+      <section class="slide" data-slide="6" data-transition="layer">
+        <div class="slide-badge">06 / PROPOSED SOLUTION</div>
+        <h2 class="slide-title">The Complete SmartMart End-to-End Workflow</h2>
+        <div class="slide-content">
+          <div class="tilt-card" style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; text-align: center;">
+              <div style="flex: 1; min-width: 140px;">
+                <div style="font-size: 1.6rem;">📱</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #38bdf8; margin-top: 0.3rem;">1. Cart Selection</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Shopper picks 1-10 items</div>
+              </div>
+              <div style="color: #00d4ff; font-size: 1.2rem;">➔</div>
+              <div style="flex: 1; min-width: 140px;">
+                <div style="font-size: 1.6rem;">🗺️</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #10b981; margin-top: 0.3rem;">2. Dijkstra Route</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Shortest path calculated</div>
+              </div>
+              <div style="color: #00d4ff; font-size: 1.2rem;">➔</div>
+              <div style="flex: 1; min-width: 140px;">
+                <div style="font-size: 1.6rem;">💬</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #f59e0b; margin-top: 0.3rem;">3. Policy Assistant</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">RAG queries verified</div>
+              </div>
+              <div style="color: #00d4ff; font-size: 1.2rem;">➔</div>
+              <div style="flex: 1; min-width: 140px;">
+                <div style="font-size: 1.6rem;">✨</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #a855f7; margin-top: 0.3rem;">4. Generative AI</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Budget & diet bundles</div>
+              </div>
+              <div style="color: #00d4ff; font-size: 1.2rem;">➔</div>
+              <div style="flex: 1; min-width: 140px;">
+                <div style="font-size: 1.6rem;">💳</div>
+                <div style="font-weight: 700; font-size: 0.9rem; color: #f43f5e; margin-top: 0.3rem;">5. Fast Checkout</div>
+                <div style="font-size: 0.72rem; color: #94a3b8;">Aisle EXIT cash/UPI</div>
               </div>
             </div>
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-              <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 800; padding: 4px 10px; border-radius: 6px;">STEP 2</span>
-              <div>
-                <strong style="color: white;">Gondola Merchandising:</strong> Filter products by Vegan/Gluten-Free, show e-ink price tags, and LED stock indicators.
-              </div>
+          </div>
+          <div class="grid-2">
+            <div class="tilt-card">
+              <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 0.4rem;">Continuous Sync with Store Floor</h3>
+              <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">
+                Every product location is tied to an explicit physical coordinate (Aisle A1 Cooler, B2 Gondola Rack, C1 Produce Bin). The shopper is never routed to an out-of-stock or moved shelf item.
+              </p>
             </div>
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-              <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 800; padding: 4px 10px; border-radius: 6px;">STEP 3</span>
-              <div>
-                <strong style="color: white;">Store Map & Route Planner:</strong> Select 3 items across Aisles 1, 3, and 4; observe Dijkstra + TSP computing the optimal walking route.
-              </div>
+            <div class="tilt-card">
+              <h3 style="color: #10b981; font-size: 1.05rem; margin-bottom: 0.4rem;">Manager Live Control</h3>
+              <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">
+                Changes made in the Admin Console instantly reflect on the customer route map and product inventory without requiring server restarts or database migrations.
+              </p>
             </div>
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-              <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 800; padding: 4px 10px; border-radius: 6px;">STEP 4</span>
-              <div>
-                <strong style="color: white;">Policy Kiosk Thermal Print:</strong> Ask <em>"What is the electronics return window?"</em>; watch the animated thermal receipt slip print out.
-              </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: SYSTEM ARCHITECTURE -->
+      <section class="slide" data-slide="7" data-transition="cube">
+        <div class="slide-badge">07 / SYSTEM ARCHITECTURE</div>
+        <h2 class="slide-title">Full-Stack Decoupled Architecture</h2>
+        <div class="slide-content">
+          <div class="grid-3">
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">💻</div>
+              <h3 style="color: #00d4ff; font-size: 1.1rem; margin-bottom: 0.3rem;">Frontend Client</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono'; margin-bottom: 0.8rem;">React 18 · Vite · Tailwind v4</p>
+              <ul style="list-style: none; font-size: 0.82rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.4rem;">
+                <li>• HashRouter navigation for static GitHub Pages</li>
+                <li>• Interactive SVG Store Map path rendering</li>
+                <li>• AuthContext role separation (Admin / Customer)</li>
+                <li>• Axios client with automatic mock fallback</li>
+              </ul>
             </div>
-            <div style="display: flex; align-items: flex-start; gap: 1rem;">
-              <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 800; padding: 4px 10px; border-radius: 6px;">STEP 5</span>
-              <div>
-                <strong style="color: white;">SmartCart & Multi-Agent:</strong> Generate generative dinner recommendations and trigger the staff walkie-talkie & CCTV console.
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">⚙️</div>
+              <h3 style="color: #10b981; font-size: 1.1rem; margin-bottom: 0.3rem;">Backend Application</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono'; margin-bottom: 0.8rem;">Python 3.13 · FastAPI · SQLAlchemy</p>
+              <ul style="list-style: none; font-size: 0.82rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.4rem;">
+                <li>• 8 modular routers (/products, /routes, /policies...)</li>
+                <li>• Dijkstra pathfinding & TSP permutation solver</li>
+                <li>• Pydantic v2 data validation schemas</li>
+                <li>• SQLite relational persistence (retail_store.db)</li>
+              </ul>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.4rem;">🧠</div>
+              <h3 style="color: #a855f7; font-size: 1.1rem; margin-bottom: 0.3rem;">AI Cloud Foundation</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; font-family: 'JetBrains Mono'; margin-bottom: 0.8rem;">Claude 3.5 Sonnet & Groq Qwen-27B</p>
+              <ul style="list-style: none; font-size: 0.82rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.4rem;">
+                <li>• Anthropic Claude API for rich natural reasoning</li>
+                <li>• Groq Ultra-fast Inference Engine (&lt;400ms)</li>
+                <li>• Vector TF-IDF policy document retrieval</li>
+                <li>• Multi-agent system orchestration layer</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8: AI TECHNOLOGIES -->
+      <section class="slide" data-slide="8" data-transition="book">
+        <div class="slide-badge">08 / AI TECHNOLOGIES</div>
+        <h2 class="slide-title">4-Paradigm AI Architectural Comparison</h2>
+        <div class="slide-content">
+          <div class="grid-4">
+            <div class="tilt-card" style="border-top: 4px solid #64748b;">
+              <div style="font-size: 1.5rem; margin-bottom: 0.3rem;">⚙️</div>
+              <h3 style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 0.2rem;">1. Rule-Based</h3>
+              <p style="font-size: 0.7rem; color: #64748b; font-family: 'JetBrains Mono'; margin-bottom: 0.5rem;">0 AI Calls · Deterministic</p>
+              <p style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+                Keyword matching against fixed policy regex. Ultra fast (&lt;5ms) but fails completely on semantic paraphrasing.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-top: 4px solid #a855f7;">
+              <div style="font-size: 1.5rem; margin-bottom: 0.3rem;">🧠</div>
+              <h3 style="color: #c084fc; font-size: 0.95rem; margin-bottom: 0.2rem;">2. Zero-Shot LLM</h3>
+              <p style="font-size: 0.7rem; color: #a855f7; font-family: 'JetBrains Mono'; margin-bottom: 0.5rem;">1 LLM Call · Un-grounded</p>
+              <p style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+                Direct prompt to foundation model. Fluent language generation, but fabricates store return timelines.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-top: 4px solid #00d4ff;">
+              <div style="font-size: 1.5rem; margin-bottom: 0.3rem;">📚</div>
+              <h3 style="color: #38bdf8; font-size: 0.95rem; margin-bottom: 0.2rem;">3. Policy RAG</h3>
+              <p style="font-size: 0.7rem; color: #00d4ff; font-family: 'JetBrains Mono'; margin-bottom: 0.5rem;">1 TF-IDF + 1 LLM Call</p>
+              <p style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+                Retrieves exact policy excerpts before generation. 100% grounded answers with thermal receipt proof.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-top: 4px solid #f59e0b;">
+              <div style="font-size: 1.5rem; margin-bottom: 0.3rem;">🤖</div>
+              <h3 style="color: #fcd34d; font-size: 0.95rem; margin-bottom: 0.2rem;">4. Multi-Agent</h3>
+              <p style="font-size: 0.7rem; color: #f59e0b; font-family: 'JetBrains Mono'; margin-bottom: 0.5rem;">3 Collaborative Calls</p>
+              <p style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.4;">
+                Customer Agent synthesizes intent; Store Agent executes live SQL verification. Highest quality consensus.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 9: CORE FUNCTIONALITY -->
+      <section class="slide" data-slide="9" data-transition="vflip">
+        <div class="slide-badge">09 / CORE FUNCTIONALITY</div>
+        <h2 class="slide-title">Six Integrated Modules in SmartMart</h2>
+        <div class="slide-content">
+          <div class="grid-3">
+            <div class="tilt-card">
+              <h3 style="color: #38bdf8; font-size: 1rem; margin-bottom: 0.3rem;">🏬 Product Catalog</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                Live search across 21+ items with category filtering, price tags, and exact aisle shelf allocations.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #10b981; font-size: 1rem; margin-bottom: 0.3rem;">🗺️ Route Planner</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                Calculates optimal path through aisles A1-D1 with animated SVG store map and distance meters.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #00d4ff; font-size: 1rem; margin-bottom: 0.3rem;">💬 Policy Chatbot</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                RAG touch kiosk answering return windows, warranties, and loyalty points with source citations.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #a855f7; font-size: 1rem; margin-bottom: 0.3rem;">🛒 SmartCart AI</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                Dietary & budget recommendation engine generating personalized bundles with single-click cart addition.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #f59e0b; font-size: 1rem; margin-bottom: 0.3rem;">📻 Staff Walkie-Talkie</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                Multi-agent intercom simulating shopper and employee collaborative query resolution.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #f43f5e; font-size: 1rem; margin-bottom: 0.3rem;">⚡ AI Diagnostics</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1;">
+                Side-by-side execution suite benchmarking Rule-Based, Zero-Shot, RAG, and Multi-Agent paradigms.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 10: SYSTEM WORKFLOW -->
+      <section class="slide" data-slide="10" data-transition="zoom">
+        <div class="slide-badge">10 / SYSTEM WORKFLOW</div>
+        <h2 class="slide-title">Interactive Shopper Journey & Technical Processing</h2>
+        <div class="slide-content">
+          <div class="grid-2">
+            <div class="tilt-card">
+              <h3 style="color: #38bdf8; font-size: 1.1rem; margin-bottom: 0.8rem;">Shopper Step-by-Step Flow</h3>
+              <ol style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; color: #cbd5e1; padding-left: 1.2rem;">
+                <li><strong>Arrival:</strong> Shopper launches SmartMart portal or scans cart QR code.</li>
+                <li><strong>List Curation:</strong> Selects items or loads one-click sample carts (e.g. "Breakfast Essentials").</li>
+                <li><strong>Graph Optimization:</strong> Dijkstra/TSP produces the shortest walking sequence from ENTRANCE.</li>
+                <li><strong>In-Store Navigation:</strong> Follows active highlighted path across shelves A1 ➔ B1 ➔ C2.</li>
+                <li><strong>Kiosk Assistance:</strong> Asks policy question, receiving instant RAG-grounded guidance.</li>
+                <li><strong>Expedited Exit:</strong> Arrives at Aisle EXIT for streamlined checkout.</li>
+              </ol>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #10b981; font-size: 1.1rem; margin-bottom: 0.8rem;">Backend Execution Pipeline</h3>
+              <div class="terminal-box">
+POST /api/routes/optimize
+Payload: {"product_ids": [1, 4, 12, 18]}
+↳ Resolving aisles: ['A1', 'B2', 'C1', 'D1']
+↳ Executing TSP Nearest-Neighbor heuristic
+↳ Running Dijkstra from ENTRANCE ➔ A1 ➔ B2 ➔ C1 ➔ D1 ➔ EXIT
+↳ Path length: 64.2 meters (Saved 38.5 meters vs random walk)
+Status: 200 OK (Execution time: 8.4ms)
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- SLIDE 14: CONCLUSION & ROADMAP -->
-      <section class="slide" data-slide="14">
-        <div class="slide-badge">● 14 / CONCLUSION & FUTURE HORIZONS</div>
-        <h2 class="slide-title">Conclusions & Autonomous Retail Roadmap</h2>
+      <!-- SLIDE 11: AI ASSISTANT -->
+      <section class="slide" data-slide="11" data-transition="panel">
+        <div class="slide-badge">11 / AI ASSISTANT DEEP DIVE</div>
+        <h2 class="slide-title">Multi-Agent Dialogue & RAG Policy Grounding</h2>
         <div class="slide-content">
           <div class="grid-2">
             <div class="tilt-card">
-              <h3 style="color: #34d399; margin-bottom: 0.8rem;">Summary of Capstone Achievements</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem; color: #cbd5e1;">
-                <li>✦ Successfully synthesized classical discrete graph theory (Dijkstra/TSP) with state-of-the-art LLMs (Groq Qwen-27B).</li>
-                <li>✦ Engineered an authentic physical retail experience with hardware skeuomorphism (E-ink, thermal slips, walkie-talkies, CCTV).</li>
-                <li>✦ Demonstrated a 0-hallucination RAG architecture ensuring rigorous compliance with store policies.</li>
-                <li>✦ Built a production-ready application deployed across both cloud server and static edge environments.</li>
-              </ul>
+              <div class="slide-badge" style="color: #a855f7;">COLLABORATIVE MULTI-AGENT SYSTEM</div>
+              <h3 style="color: #c084fc; font-size: 1.05rem; margin-bottom: 0.8rem;">Customer Agent ⟷ Store Agent</h3>
+              <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem;">
+                <div style="background: rgba(168, 85, 247, 0.15); border-left: 3px solid #a855f7; padding: 0.5rem 0.8rem; border-radius: 6px;">
+                  <strong style="color: #e9d5ff;">Turn 1 (Customer Agent):</strong> "Shopper needs gluten-free snacks under ₹60."
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.15); border-left: 3px solid #10b981; padding: 0.5rem 0.8rem; border-radius: 6px;">
+                  <strong style="color: #bbf7d0;">Turn 2 (Store Agent):</strong> "Querying SQLite: Found Roasted Peanuts (Aisle B2, ₹35, Stock: 24)."
+                </div>
+                <div style="background: rgba(0, 212, 255, 0.15); border-left: 3px solid #00d4ff; padding: 0.5rem 0.8rem; border-radius: 6px;">
+                  <strong style="color: #bae6fd;">Turn 3 (Consensus Synthesis):</strong> "Recommending item in Aisle B2. Added directly to route planner."
+                </div>
+              </div>
             </div>
             <div class="tilt-card">
-              <h3 style="color: #38bdf8; margin-bottom: 0.8rem;">Future Research & Expansion</h3>
-              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem; color: #cbd5e1;">
-                <li>🚀 <strong>YOLOv11 Computer Vision:</strong> Cart-mounted camera for frictionless automated item addition.</li>
-                <li>🚀 <strong>RFID Portal Gateways:</strong> Seamless cashier-less checkout as shoppers exit store doors.</li>
-                <li>🚀 <strong>Autonomous Restocking AMRs:</strong> Mobile robot fleet integration dispatching replenishment bots to low-stock shelves.</li>
-                <li>🚀 <strong>Edge TPU Deployment:</strong> Running local 1-bit quantized neural models directly on cart hardware.</li>
+              <div class="slide-badge" style="color: #00d4ff;">TF-IDF RETRIEVAL AUGMENTED GENERATION</div>
+              <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 0.8rem;">Grounded Policy Verification</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem; color: #cbd5e1;">
+                <li>• <strong>Document Store:</strong> 10+ official store policy sections (Returns, Warranty, Hygiene, Price Match).</li>
+                <li>• <strong>TF-IDF Vector Index:</strong> Scored ranking isolates exact matching policy clause.</li>
+                <li>• <strong>Strict Prompt Contract:</strong> LLM is instructed to answer ONLY from retrieved context.</li>
+                <li>• <strong>Hallucination Defense:</strong> If query is out of policy bounds, system gracefully declines instead of inventing rules.</li>
               </ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 12: DATA MANAGEMENT -->
+      <section class="slide" data-slide="12" data-transition="layer">
+        <div class="slide-badge">12 / DATA MANAGEMENT</div>
+        <h2 class="slide-title">Relational Schema & Dynamic State Lifecycle</h2>
+        <div class="slide-content">
+          <div class="grid-3" style="margin-bottom: 1.5rem;">
+            <div class="tilt-card">
+              <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 0.4rem;">Products Entity</h3>
+              <div class="terminal-box" style="font-size: 0.72rem;">
+Table: products
+- id: INTEGER (PK)
+- name: VARCHAR(100)
+- price: FLOAT
+- category_id: INTEGER (FK)
+- aisle: VARCHAR(10) [A1-D1]
+- stock_quantity: INTEGER
+- is_in_stock: BOOLEAN
+              </div>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #10b981; font-size: 1.05rem; margin-bottom: 0.4rem;">Store Graph Entity</h3>
+              <div class="terminal-box" style="font-size: 0.72rem;">
+Graph: STORE_GRAPH
+- Nodes: ['ENTRANCE', 'A1',
+  'A2', 'B1', 'B2', 'C1', 
+  'C2', 'D1', 'EXIT']
+- Edges: Undirected weighted
+- Weights: Metric distances
+  between physical gondolas
+              </div>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #f59e0b; font-size: 1.05rem; margin-bottom: 0.4rem;">Policies Knowledge</h3>
+              <div class="terminal-box" style="font-size: 0.72rem;">
+Table: policies
+- id: INTEGER (PK)
+- category: VARCHAR(50)
+- title: VARCHAR(150)
+- body_text: TEXT
+- return_window_days: INT
+- requires_receipt: BOOL
+              </div>
+            </div>
+          </div>
+          <div class="tilt-card" style="border-left: 4px solid #10b981;">
+            <p style="font-size: 0.85rem; color: #e2e8f0;">
+              <strong>Persistence Guarantees:</strong> SQLite relational engine handles ACID-compliant updates from the Admin portal. Frontend client synchronizes through localStorage caching, maintaining seamless state on static hosting.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 13: TECHNOLOGY STACK -->
+      <section class="slide" data-slide="13" data-transition="cube">
+        <div class="slide-badge">13 / TECHNOLOGY STACK</div>
+        <h2 class="slide-title">Engineered with Industry-Grade Modern Tools</h2>
+        <div class="slide-content">
+          <div class="grid-4">
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚛️</div>
+              <h3 style="color: #00d4ff; font-size: 1rem;">React 18 & Vite</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Component architecture, fast HMR, optimized bundle sizing.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🎨</div>
+              <h3 style="color: #38bdf8; font-size: 1rem;">Tailwind CSS v4</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">High-performance utility styling, dark mode, responsive grids.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚡</div>
+              <h3 style="color: #10b981; font-size: 1rem;">FastAPI & Python 3.13</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Asynchronous REST API, auto OpenAPI/Swagger documentation.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🗄️</div>
+              <h3 style="color: #f59e0b; font-size: 1rem;">SQLAlchemy & SQLite</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Relational ORM, transactional safety, zero-setup embedded DB.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🤖</div>
+              <h3 style="color: #a855f7; font-size: 1rem;">Anthropic Claude 3.5</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Deep reasoning engine for multi-agent synthesis & RAG.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚡</div>
+              <h3 style="color: #f43f5e; font-size: 1rem;">Groq Cloud LPU</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Sub-400ms inference with Qwen-27B for real-time edge calls.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📐</div>
+              <h3 style="color: #10b981; font-size: 1rem;">Three.js & GSAP</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Cinematic 3D presentation engine, WebGL shaders & transforms.</p>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🐙</div>
+              <h3 style="color: #cbd5e1; font-size: 1rem;">GitHub Pages</h3>
+              <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Static edge distribution with automated CI/CD deployment.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 14: LIVE WEBSITE DEMONSTRATION -->
+      <section class="slide" data-slide="14" data-transition="book">
+        <div class="slide-badge">14 / LIVE DEMONSTRATION</div>
+        <h2 class="slide-title">Interactive Defense & Live Verification Links</h2>
+        <div class="slide-content">
+          <div class="grid-2">
+            <div class="tilt-card">
+              <h3 style="color: #38bdf8; font-size: 1.1rem; margin-bottom: 0.8rem;">Direct Route Shortcuts</h3>
+              <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <a href="./index.html#/products" target="_blank" style="text-decoration: none;" class="action-btn">
+                  🏬 1. Shelves & Aisles (Product Catalog) ➔
+                </a>
+                <a href="./index.html#/planner" target="_blank" style="text-decoration: none;" class="action-btn">
+                  🗺️ 2. Store Floorplan & Route Optimizer ➔
+                </a>
+                <a href="./index.html#/policy-chat" target="_blank" style="text-decoration: none;" class="action-btn">
+                  💬 3. Touch Kiosk Policy Q&A Terminal ➔
+                </a>
+                <a href="./index.html#/recommendations" target="_blank" style="text-decoration: none;" class="action-btn">
+                  🛒 4. SmartCart Generative Recommender ➔
+                </a>
+                <a href="./index.html#/agents" target="_blank" style="text-decoration: none;" class="action-btn">
+                  📻 5. Staff Intercom Multi-Agent Dialog ➔
+                </a>
+                <a href="./index.html#/comparison" target="_blank" style="text-decoration: none;" class="action-btn">
+                  ⚡ 6. AI Paradigm Benchmark Diagnostic ➔
+                </a>
+                <a href="./index.html#/admin" target="_blank" style="text-decoration: none;" class="action-btn primary">
+                  🔑 7. Store Administrator Portal (PIN: CSE276) ➔
+                </a>
+              </div>
+            </div>
+            <div class="tilt-card">
+              <h3 style="color: #10b981; font-size: 1.1rem; margin-bottom: 0.8rem;">Live Demonstration Checklist</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.7rem; font-size: 0.85rem; color: #cbd5e1;">
+                <li>☑️ Load "Breakfast Essentials" cart and execute live Dijkstra path.</li>
+                <li>☑️ Verify SVG aisle navigation highlighting through aisles A1 & B1.</li>
+                <li>☑️ Ask policy kiosk: <em>"Can I return an opened shampoo bottle?"</em></li>
+                <li>☑️ Verify grounded rejection citing Hygiene Bay Policy #3.</li>
+                <li>☑️ Run 4-paradigm benchmark and inspect comparative latencies.</li>
+                <li>☑️ Enter Admin portal with <code>CSE276</code> and update item inventory.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 15: TESTING AND RESULTS -->
+      <section class="slide" data-slide="15" data-transition="vflip">
+        <div class="slide-badge">15 / EMPIRICAL EVALUATION</div>
+        <h2 class="slide-title">Verified Implementation Results & Latency Metrics</h2>
+        <div class="slide-content">
+          <div class="grid-4" style="margin-bottom: 1.5rem;">
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #10b981;">8.4 ms</div>
+              <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Dijkstra Solver Latency</div>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #00d4ff;">42.6%</div>
+              <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Walking Distance Reduction</div>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #f59e0b;">385 ms</div>
+              <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Groq Qwen-27B Inference</div>
+            </div>
+            <div class="tilt-card" style="text-align: center;">
+              <div style="font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 800; color: #a855f7;">100%</div>
+              <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">Policy Grounding Accuracy</div>
+            </div>
+          </div>
+          <div class="tilt-card">
+            <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 0.5rem;">Evaluation Methodology</h3>
+            <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">
+              Tested across 50 simulated customer carts varying in size from 2 to 10 items. Dijkstra TSP heuristic guaranteed optimal traversal without backtracking. Policy RAG verified against 15 tricky policy inquiries with zero false return authorizations.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 16: LIMITATIONS -->
+      <section class="slide" data-slide="16" data-transition="zoom">
+        <div class="slide-badge">16 / ACADEMIC TRANSPARENCY</div>
+        <h2 class="slide-title">Current System Constraints & Scope Boundaries</h2>
+        <div class="slide-content">
+          <div class="grid-3">
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">Static Hosting Boundaries</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                GitHub Pages is purely static. Without local Python server running, live AI falls back to in-browser Groq API key or mock data.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">TF-IDF vs Dense Vectors</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                Policy retrieval uses lexical TF-IDF scoring rather than dense neural embeddings (FAISS/Milvus), limiting cross-language synonym matching.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">Single-Floor Graph</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                The store layout models 8 aisles across a single planar level; multi-floor elevator/escalator routing is not yet implemented.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">SQLite Concurrency</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                SQLite is ideal for collegiate demonstration but would require migration to PostgreSQL for hundreds of concurrent cashier writes.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">Simulated IoT Sensors</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                SmartCart tare weight scale and RFID gates are functionally simulated in software rather than interfaced to physical microcontrollers.
+              </p>
+            </div>
+            <div class="tilt-card" style="border-left: 3px solid #f59e0b;">
+              <h3 style="color: #fcd34d; font-size: 1rem; margin-bottom: 0.4rem;">Offline Voice Input</h3>
+              <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.4;">
+                Walkie-talkie dialog currently runs via text tokens; full Speech-to-Text (Whisper) streaming is slated for next phase.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 17: FUTURE SCOPE -->
+      <section class="slide" data-slide="17" data-transition="panel">
+        <div class="slide-badge">17 / FUTURE SCOPE</div>
+        <h2 class="slide-title">SmartMart 2.0: The Autonomous Superstore Vision</h2>
+        <div class="slide-content">
+          <div class="grid-3">
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">👁️</div>
+              <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 0.3rem;">YOLOv11 Computer Vision</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Cart-mounted edge cameras recognizing items placed inside the basket for frictionless cashier-less checkout.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">🤖</div>
+              <h3 style="color: #10b981; font-size: 1.05rem; margin-bottom: 0.3rem;">Autonomous Restocking AMRs</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Autonomous Mobile Robots receiving dispatch alerts from low-stock shelves to replenish items from warehouse.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">📶</div>
+              <h3 style="color: #f59e0b; font-size: 1.05rem; margin-bottom: 0.3rem;">Ultra-Wideband (UWB) Beaconing</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Sub-10cm indoor positioning triangulating cart location in real-time across supermarket ceiling nodes.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">🧠</div>
+              <h3 style="color: #a855f7; font-size: 1.05rem; margin-bottom: 0.3rem;">On-Cart Edge LLM (1-bit)</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Running quantized neural models directly on cart hardware, enabling instant offline intelligence without cloud latency.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">🎙️</div>
+              <h3 style="color: #f43f5e; font-size: 1.05rem; margin-bottom: 0.3rem;">Real-Time Voice Assistant</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Hands-free voice dialogue allowing shoppers to ask questions naturally while walking down store aisles.
+              </p>
+            </div>
+            <div class="tilt-card">
+              <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">💳</div>
+              <h3 style="color: #00d4ff; font-size: 1.05rem; margin-bottom: 0.3rem;">Automated Cart Payment</h3>
+              <p style="font-size: 0.8rem; color: #94a3b8;">
+                Direct biometric or UPI checkout from the shopping cart handle display without waiting in checkout queues.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 18: THANK YOU & DISCUSSION -->
+      <section class="slide" data-slide="18" data-transition="layer">
+        <div class="hero-container">
+          <div class="hero-badge" style="background: rgba(0, 212, 255, 0.2); border-color: rgba(0, 212, 255, 0.5); color: #7dd3fc;">
+            ● DEFENSE COMPLETE · THANK YOU
+          </div>
+          <h1 class="hero-title" style="font-size: 4.2rem;">QUESTIONS & DISCUSSION</h1>
+          <p style="font-family: 'Orbitron'; font-size: 1.3rem; color: #10b981; margin-bottom: 1rem; letter-spacing: 0.08em;">
+            SMARTMART: AI RETAIL STORE ASSISTANT
+          </p>
+          <p class="hero-sub" style="max-width: 750px;">
+            Thank you to our faculty evaluators, mentors, and peers. We welcome your technical questions on graph algorithms, multi-agent consensus, or RAG implementation.
+          </p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-top: 1rem;">
+            <a href="./index.html" class="action-btn primary" style="font-size: 1rem; padding: 0.75rem 1.6rem;">
+              🚀 Open Live Web Application
+            </a>
+            <a href="https://github.com/paragverma81680/AI-Project" target="_blank" class="action-btn" style="font-size: 1rem; padding: 0.75rem 1.6rem;">
+              💻 GitHub Source Code
+            </a>
+          </div>
+          <div style="margin-top: 2.5rem; font-size: 0.8rem; color: #64748b; font-family: 'JetBrains Mono', monospace;">
+            CSE276 College Project · Parag Verma · Built with React 18, FastAPI, Claude 3.5 & Three.js
           </div>
         </div>
       </section>
@@ -1022,8 +1392,8 @@
   <!-- Bottom Navigation Dock -->
   <footer>
     <div class="nav-controls">
-      <button class="nav-btn" id="btn-prev" title="Previous Slide [Left Arrow]">◀</button>
-      <button class="nav-btn" id="btn-next" title="Next Slide [Right Arrow / Space]">▶</button>
+      <button class="nav-btn" id="btn-prev" title="Previous Slide [Left Arrow / PageUp]">◀</button>
+      <button class="nav-btn" id="btn-next" title="Next Slide [Right Arrow / Space / PageDown]">▶</button>
     </div>
 
     <div class="progress-track">
@@ -1031,10 +1401,11 @@
     </div>
 
     <div class="slide-counter">
-      <span id="current-slide-num">01</span> / <span id="total-slides-num">14</span>
+      <span id="current-slide-num">01</span> / <span id="total-slides-num">18</span>
     </div>
   </footer>
 
+  <!-- Interactive JavaScript Engine -->
   <script>
     // Audio Synthesizer (Zero External Dependencies)
     class SoundEngine {
@@ -1045,38 +1416,46 @@
       init() {
         if (!this.ctx) {
           const AudioContext = window.AudioContext || window.webkitAudioContext;
-          this.ctx = new AudioContext();
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
         }
       }
       playSlide() {
         if (!this.enabled) return;
         this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(380, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(760, this.ctx.currentTime + 0.16);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.16);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.16);
+        } catch(e) {}
       }
       playClick() {
         if (!this.enabled) return;
         this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.08);
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(900, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(250, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch(e) {}
       }
       toggle() {
         this.enabled = !this.enabled;
@@ -1091,6 +1470,7 @@
     const totalSlides = slides.length;
     let currentIdx = 0;
     let isOverview = false;
+    let wheelDebounce = false;
 
     const progressFill = document.getElementById('progress-fill');
     const currentSlideNum = document.getElementById('current-slide-num');
@@ -1104,6 +1484,16 @@
         slide.classList.remove('active', 'prev', 'next');
         if (idx === newIdx) {
           slide.classList.add('active');
+          // GSAP subtle entrance stagger on cards inside
+          if (window.gsap) {
+            const cards = slide.querySelectorAll('.tilt-card, .hero-pill');
+            if (cards.length > 0) {
+              gsap.fromTo(cards, 
+                { opacity: 0, y: 15 },
+                { opacity: 1, y: 0, duration: 0.4, stagger: 0.04, ease: "power2.out" }
+              );
+            }
+          }
         } else if (idx < newIdx) {
           slide.classList.add('prev');
         } else {
@@ -1115,6 +1505,13 @@
       currentSlideNum.textContent = String(currentIdx + 1).padStart(2, '0');
       progressFill.style.width = `${((currentIdx + 1) / totalSlides) * 100}%`;
       sound.playSlide();
+
+      // Trigger 3D camera zoom/pan on Three.js background
+      if (window.cameraTarget) {
+        window.cameraTarget.x = (Math.random() - 0.5) * 12;
+        window.cameraTarget.y = (Math.random() - 0.5) * 8;
+        window.cameraTarget.z = 25 + (currentIdx % 4) * 4;
+      }
     }
 
     function nextSlide() {
@@ -1129,10 +1526,11 @@
       }
     }
 
-    // Event Listeners
+    // Navigation buttons
     document.getElementById('btn-next').addEventListener('click', nextSlide);
     document.getElementById('btn-prev').addEventListener('click', prevSlide);
 
+    // Keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
@@ -1148,6 +1546,37 @@
         toggleSound();
       }
     });
+
+    // Mouse Wheel Navigation with Debounce
+    window.addEventListener('wheel', (e) => {
+      if (isOverview || wheelDebounce) return;
+      if (Math.abs(e.deltaY) > 35) {
+        wheelDebounce = true;
+        if (e.deltaY > 0) {
+          nextSlide();
+        } else {
+          prevSlide();
+        }
+        setTimeout(() => { wheelDebounce = false; }, 600);
+      }
+    }, { passive: true });
+
+    // Touch Swipe Navigation
+    let touchStartX = 0;
+    let touchStartY = 0;
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      const diffX = e.changedTouches[0].screenX - touchStartX;
+      const diffY = e.changedTouches[0].screenY - touchStartY;
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+        if (diffX < 0) nextSlide();
+        else prevSlide();
+      }
+    }, { passive: true });
 
     // 3D Card Tilt Parallax Effect
     document.querySelectorAll('.tilt-card').forEach(card => {
@@ -1170,7 +1599,7 @@
     function toggleOverview() {
       isOverview = !isOverview;
       document.body.classList.toggle('overview-mode', isOverview);
-      document.getElementById('btn-overview').textContent = isOverview ? '✕ Exit Overview' : '🗂️ Overview';
+      document.getElementById('btn-overview').textContent = isOverview ? '✕ Exit' : '🗂️ Overview';
       sound.playClick();
     }
     document.getElementById('btn-overview').addEventListener('click', toggleOverview);
@@ -1206,65 +1635,112 @@
     }
     document.getElementById('btn-sound').addEventListener('click', toggleSound);
 
-    // Ambient Particle Network Canvas
-    const canvas = document.getElementById('ambient-canvas');
-    const ctx = canvas.getContext('2d');
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    // Three.js 3D Background Engine
+    (function initThreeBackground() {
+      const canvas = document.getElementById('webgl-bg');
+      if (!window.THREE || !canvas) return;
 
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    });
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x040813, 0.025);
 
-    const particles = [];
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        radius: Math.random() * 2 + 1,
-        color: Math.random() > 0.5 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(6, 182, 212, 0.4)'
-      });
-    }
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 28;
 
-    function renderCanvas() {
-      ctx.clearRect(0, 0, width, height);
+      window.cameraTarget = { x: 0, y: 0, z: 28 };
 
-      // Draw faint connections
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(51, 65, 85, ${0.2 * (1 - dist / 140)})`;
-            ctx.lineWidth = 1;
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
-          }
-        }
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Particle Starfield / AI Nodes
+      const particleCount = 700;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+
+      const colorCyan = new THREE.Color(0x00d4ff);
+      const colorViolet = new THREE.Color(0x8b5cf6);
+      const colorGreen = new THREE.Color(0x10b981);
+
+      for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 80;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 60;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+
+        let mixedColor = colorCyan.clone();
+        const rand = Math.random();
+        if (rand > 0.6) mixedColor = colorViolet.clone();
+        else if (rand > 0.3) mixedColor = colorGreen.clone();
+
+        colors[i * 3] = mixedColor.r;
+        colors[i * 3 + 1] = mixedColor.g;
+        colors[i * 3 + 2] = mixedColor.b;
       }
 
-      // Draw particles
-      particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
+      const material = new THREE.PointsMaterial({
+        size: 0.65,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending
       });
 
-      requestAnimationFrame(renderCanvas);
-    }
-    renderCanvas();
+      const particleSystem = new THREE.Points(geometry, material);
+      scene.add(particleSystem);
+
+      // Floating 3D Geometric Prisms (Representing Store Shelves & AI Blocks)
+      const shapesGroup = new THREE.Group();
+      const boxGeo = new THREE.BoxGeometry(2, 2, 2);
+      const octaGeo = new THREE.OctahedronGeometry(1.6);
+      const torusGeo = new THREE.TorusGeometry(2, 0.2, 16, 50);
+
+      const shapeMatCyan = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true, transparent: true, opacity: 0.25 });
+      const shapeMatViolet = new THREE.MeshBasicMaterial({ color: 0x8b5cf6, wireframe: true, transparent: true, opacity: 0.25 });
+
+      for (let i = 0; i < 12; i++) {
+        const mesh = new THREE.Mesh(i % 2 === 0 ? boxGeo : octaGeo, i % 3 === 0 ? shapeMatViolet : shapeMatCyan);
+        mesh.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 40);
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+        shapesGroup.add(mesh);
+      }
+      scene.add(shapesGroup);
+
+      // Subtle mouse follower
+      let mouseX = 0, mouseY = 0;
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX - window.innerWidth / 2) * 0.0008;
+        mouseY = (e.clientY - window.innerHeight / 2) * 0.0008;
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Smooth camera lerp
+        camera.position.x += (window.cameraTarget.x + mouseX * 20 - camera.position.x) * 0.03;
+        camera.position.y += (window.cameraTarget.y - mouseY * 20 - camera.position.y) * 0.03;
+        camera.position.z += (window.cameraTarget.z - camera.position.z) * 0.03;
+
+        particleSystem.rotation.y += 0.0008;
+        particleSystem.rotation.x += 0.0004;
+
+        shapesGroup.children.forEach((mesh, idx) => {
+          mesh.rotation.x += 0.003 * ((idx % 2 === 0) ? 1 : -1);
+          mesh.rotation.y += 0.005 * ((idx % 3 === 0) ? 1 : -1);
+        });
+
+        renderer.render(scene, camera);
+      }
+      animate();
+    })();
   </script>
 </body>
 </html>

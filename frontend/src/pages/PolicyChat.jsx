@@ -176,16 +176,16 @@ export default function PolicyChat() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* ── Overhead Physical Store Sign ───────────────────────── */}
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-900 font-black text-xs uppercase tracking-widest border border-emerald-300 shadow-xs mb-2">
-          <span>🔔</span>
-          <span>In-Store Customer Assistance Desk</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-rose-400 font-mono font-bold text-xs uppercase tracking-widest border border-rose-500/30 shadow-lg mb-2">
+          <span>🤖</span>
+          <span>SmartBot Capability · Customer Support Kiosk</span>
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
         </div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-          SmartMart <span style={{ color: '#16a34a' }}>Digital Kiosk</span>
+          SmartMart <span style={{ color: '#16a34a' }}>Customer Desk Kiosk</span>
         </h1>
         <p className="text-xs text-gray-500 mt-1">
-          Touchscreen Terminal Station #04 · Near Entrance Turnstiles & Customer Service
+          Grounded Policy RAG Terminal · Station #04 · Powered by SmartBot Unified Intelligence
         </p>
       </div>
 

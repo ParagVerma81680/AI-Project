@@ -120,13 +120,13 @@ export default function Comparison() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* ── Header ────────────────────────────────────────────── */}
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 font-black text-xs uppercase tracking-widest border border-emerald-300 shadow-xs mb-2">
-          <span>🔬</span>
-          <span>Store AI Architecture Benchmark</span>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-amber-400 font-mono font-bold text-xs uppercase tracking-widest border border-amber-500/30 shadow-lg mb-2">
+          <span>⚡</span>
+          <span>SmartBot Capability · System Monitoring & AI Diagnostics</span>
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
         </div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-          AI Systems <span style={{ color: '#16a34a' }}>Control Console</span>
+          AI Architecture <span style={{ color: '#16a34a' }}>Control Console</span>
         </h1>
         <p className="text-xs text-gray-500 mt-1">
           Benchmarking 4 Core Paradigms: Rule-Based · Zero-Shot LLM · Policy RAG · Multi-Agent System

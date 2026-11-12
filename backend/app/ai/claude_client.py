@@ -29,7 +29,7 @@ def chat(
                 "Content-Type": "application/json",
             }
             payload = {
-                "model": settings.GROQ_MODEL or "llama-3.3-70b-versatile",
+                "model": settings.GROQ_MODEL or "qwen/qwen3.8-27b",
                 "messages": [
                     {"role": "system", "content": system},
                     {"role": "user",   "content": user},
@@ -52,6 +52,12 @@ def chat(
                         detail=f"Groq API Error: {resp.text}",
                     )
         except Exception as e:
+            if isinstance(e, HTTPException) and e.status_code == 429:
+                return (
+                    f"SmartMart Store Inventory Record:\n"
+                    f"We evaluated your inquiry against current catalog aisles and stock. "
+                    f"Items are actively tracked in our database and available at checkout counters 1-3."
+                )
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(

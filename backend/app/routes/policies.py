@@ -16,7 +16,7 @@ from app.database.session  import get_db
 from app.schemas.policy    import PolicyAskRequest, PolicyAskResponse, PolicyList, PolicyOut, PolicyCreate, PolicyUpdate
 from app.models.policy     import PolicyDocument
 from app.services          import policy_service
-from app.ai.rag_engine     import answer_policy_question
+from app.ai.rag_engine     import answer_policy_question, async_answer_policy_question
 
 router = APIRouter()
 
@@ -150,8 +150,8 @@ def delete_policy(policy_id: int, db: Session = Depends(get_db)):
         "in actual store policy — no hallucination."
     ),
 )
-def ask_policy_question(request: PolicyAskRequest, db: Session = Depends(get_db)):
-    result = answer_policy_question(db, question=request.question, top_k=request.top_k)
+async def ask_policy_question(request: PolicyAskRequest, db: Session = Depends(get_db)):
+    result = await async_answer_policy_question(db, question=request.question, top_k=request.top_k)
     return PolicyAskResponse(
         question=request.question,
         answer=result["answer"],
