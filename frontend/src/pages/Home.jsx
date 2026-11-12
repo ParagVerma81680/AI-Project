@@ -113,6 +113,16 @@ export default function Home() {
             >
               Plan In-Store Route
             </Link>
+            <a
+              href="./presentation.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 bg-slate-900/90 hover:bg-slate-900 text-cyan-300 border border-cyan-400/50 flex items-center gap-2"
+              title="Open 3D Animated Mind-Blowing Slide Deck & Download PPTX"
+            >
+              <span className="text-lg">📽️</span>
+              <span>3D Animated PPT</span>
+            </a>
           </div>
         </div>
       </section>

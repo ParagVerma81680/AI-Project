@@ -133,6 +133,18 @@ export default function Navbar() {
 
           {/* ── User Auth Controls & API Key Pill ─────────────────── */}
           <div className="flex items-center gap-2">
+            {/* 3D Animated Presentation Link */}
+            <a
+              href="./presentation.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-cyan-200 bg-cyan-950/80 border border-cyan-500/60 hover:bg-cyan-900 transition-all flex items-center gap-1.5 shadow-sm hover:scale-105"
+              title="Open 3D Animated Presentation & Download PPTX"
+            >
+              <span className="animate-bounce">📽️</span>
+              <span className="font-extrabold tracking-wide">3D PPT</span>
+            </a>
+
             <button
               onClick={() => setApiKeyModalOpen(true)}
               className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-bold text-emerald-300 bg-emerald-950/70 border border-emerald-700/60 hover:bg-emerald-900 transition-colors flex items-center gap-1"
